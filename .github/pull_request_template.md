@@ -1,6 +1,6 @@
 # Description
 
-Brief summary of changes
+Brief summary of changes (or a list, if you want)
 
 Fixes issue #
 
