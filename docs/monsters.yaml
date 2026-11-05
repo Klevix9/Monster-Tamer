@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: Monster Tamers - Bestiary service
+  version: 0.1.0
+  description: |
+    The catalogue of every monster in the game: names, images and stats.
+    Covers US-10, US-11. Read-only for players; the data comes from seed/monsters.json.
+
+    Every monster has an image and the stats used in encounters (hp, attack,
+    defense, speed, element). Stats are integers from 1 to 100 (placeholder,
+    see docs/game-rules.md).
+
+    Called by: Ownership (check monsters exist, get the starter set) and
+    Encounter (get stats for the team and the wild monster).
+
+servers:
+  - url: http://127.0.0.1:4012
+    description: Prism mock server, for trying the API before the real service exists
+  - url: https://localhost:8443
+    description: API Gateway (player endpoints only, /internal is blocked)
+  - url: https://bestiary:5002
+    description: Bestiary service inside the docker network
+
+tags:
+  - name: monsters
+  - name: internal
+
+paths:
+  /monsters:
+    get:
+      tags: [monsters]
+      summary: List every monster in the game (US-10)
+      description: Shows all monsters, owned or not. Use /collection on Ownership for the player's own.
+      security:
+        - oauth2: []
+      parameters:
+        - name: element
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Element'
+        - name: rarity
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Rarity'
+      responses:
+        '200':
+          description: All monsters matching the filters (empty list if none match)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonsterSummary'
+              example:
+                - id: flamepup
+                  name: Flamepup
+                  image_url: /monsters/flamepup/image
+                  element: fire
+                  rarity: common
+                - id: tidefin
+                  name: Tidefin
+                  image_url: /monsters/tidefin/image
+                  element: water
+                  rarity: rare
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /monsters/{monster_id}:
+    get:
+      tags: [monsters]
+      summary: Get one monster's image and characteristics (US-11)
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/MonsterId'
+      responses:
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '200':
+          description: The monster with all its stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Monster'
+              example:
+                id: flamepup
+                name: Flamepup
+                description: A small fire dog. Fast, but fragile.
+                image_url: /monsters/flamepup/image
+                element: fire
+                rarity: common
+                starter: true
+                stats:
+                  hp: 40
+                  attack: 55
+                  defense: 30
+                  speed: 70
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /monsters/{monster_id}/image:
+    get:
+      tags: [monsters]
+      summary: Get the monster's image
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/MonsterId'
+      responses:
+        '200':
+          description: The image file
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /internal/monsters:
+    get:
+      tags: [internal]
+      summary: Get several monsters with stats in one call (Encounter, Ownership)
+      security:
+        - serviceToken: []
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated monster ids, at most 20
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items:
+              type: string
+              pattern: '^[a-z0-9-]{1,40}$'
+          example: [flamepup, tidefin]
+      responses:
+        '200':
+          description: The requested monsters, in the order asked
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Monster'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: One or more ids do not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: monster_not_found
+                message: Unknown monster ids. ghostcat
+
+  /internal/starters:
+    get:
+      tags: [internal]
+      summary: Get the starter monsters a new player receives (Ownership)
+      security:
+        - serviceToken: []
+      responses:
+        '200':
+          description: The starter set defined by the game rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MonsterSummary'
+
+  /health:
+    get:
+      tags: [internal]
+      summary: Health check (used by docker compose)
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Player token from the Account service (/auth/token)
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes: {}
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token for service-to-service calls. /internal paths are also unreachable
+        from outside because the gateway blocks them. Exact mechanism to be
+        decided in docs/security.md (service JWT or mutual TLS).
+
+  parameters:
+    MonsterId:
+      name: monster_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]{1,40}$'
+      example: flamepup
+
+  responses:
+    BadRequest:
+      description: Invalid query parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: invalid_request
+            message: Unknown element. lava
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Please log in again.
+    NotFound:
+      description: No monster with this id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: monster_not_found
+            message: This monster does not exist.
+
+  schemas:
+    Element:
+      type: string
+      enum: [fire, water, grass, electric, rock]
+
+    Rarity:
+      type: string
+      enum: [common, rare, legendary]
+
+    Stats:
+      type: object
+      required: [hp, attack, defense, speed]
+      properties:
+        hp:
+          type: integer
+          minimum: 1
+          maximum: 100
+        attack:
+          type: integer
+          minimum: 1
+          maximum: 100
+        defense:
+          type: integer
+          minimum: 1
+          maximum: 100
+        speed:
+          type: integer
+          minimum: 1
+          maximum: 100
+
+    MonsterSummary:
+      type: object
+      required: [id, name, image_url, element, rarity]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        image_url:
+          type: string
+        element:
+          $ref: '#/components/schemas/Element'
+        rarity:
+          $ref: '#/components/schemas/Rarity'
+
+    Monster:
+      type: object
+      required: [id, name, description, image_url, element, rarity, starter, stats]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        image_url:
+          type: string
+        element:
+          $ref: '#/components/schemas/Element'
+        rarity:
+          $ref: '#/components/schemas/Rarity'
+        starter:
+          type: boolean
+          description: True if new players can receive it
+        stats:
+          $ref: '#/components/schemas/Stats'
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

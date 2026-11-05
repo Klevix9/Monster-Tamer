@@ -1,0 +1,326 @@
+openapi: 3.0.3
+info:
+  title: Monster Tamers - Historian service
+  version: 0.1.0
+  description: |
+    Permanent record of every finished encounter run.
+    Covers US-23, US-24 (and part of US-03, US-25: results are stored permanently).
+
+    Only Encounter writes here (POST /internal/history), after a run ends.
+    Players can only read their own history. Each entry keeps the team exactly
+    as it was during the run, even if the player changed the team later (US-24).
+
+servers:
+  - url: http://127.0.0.1:4014
+    description: Prism mock server, for trying the API before the real service exists
+  - url: https://localhost:8443
+    description: API Gateway (player endpoints only, /internal is blocked)
+  - url: https://historian:5004
+    description: Historian service inside the docker network
+
+tags:
+  - name: history
+  - name: internal
+
+paths:
+  /history:
+    get:
+      tags: [history]
+      summary: List my past encounters, newest first (US-23)
+      security:
+        - oauth2: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Only this player's entries, newest first. Empty list if none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistorySummary'
+              example:
+                - run_id: 7e8f9a0b-1c2d-4e3f-8a4b-5c6d7e8f9a0b
+                  encounter_id: river-ambush
+                  encounter_name: River ambush
+                  status: success
+                  ended_at: '2026-11-05T11:01:30Z'
+                  reward_monster_id: tidefin
+        '400':
+          description: Invalid limit or offset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /history/{run_id}:
+    get:
+      tags: [history]
+      summary: Get the details of one past encounter (US-24)
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: The full entry, with the team as it was during the run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryEntry'
+              example:
+                run_id: 7e8f9a0b-1c2d-4e3f-8a4b-5c6d7e8f9a0b
+                player_id: 3f6b1c2e-8a1d-4f0e-9c3b-2d7e5a1f9b44
+                encounter_id: river-ambush
+                encounter_name: River ambush
+                status: success
+                team:
+                  - owned_id: 9b2e4c1a-0f3d-4a7e-8c55-1d2b3c4d5e6f
+                    monster_id: flamepup
+                    stats: {hp: 40, attack: 55, defense: 30, speed: 70}
+                outcome:
+                  team_score: 212
+                  encounter_score: 180
+                  seed: 48213
+                reward_monster_id: tidefin
+                started_at: '2026-11-05T11:00:00Z'
+                ended_at: '2026-11-05T11:01:30Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The entry belongs to another player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: forbidden
+                message: This encounter is not yours.
+        '404':
+          description: No entry with this run id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: not_found
+                message: This encounter does not exist.
+
+  /internal/history:
+    post:
+      tags: [internal]
+      summary: Record a finished run (called by Encounter only)
+      description: |
+        Idempotent on run_id. The first call stores the entry (201). Sending the
+        same run_id again with the same data returns 200 and stores nothing new.
+        The same run_id with different data returns 409, so a result can never be
+        changed after it is recorded.
+      security:
+        - serviceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoryEntry'
+      responses:
+        '200':
+          description: Already recorded with the same data, nothing changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryEntry'
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryEntry'
+        '400':
+          description: Missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: This run_id is already recorded with different data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: conflict
+                message: A different result is already recorded for this run.
+
+  /health:
+    get:
+      tags: [internal]
+      summary: Health check (used by docker compose)
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Player token from the Account service (/auth/token)
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes: {}
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token for service-to-service calls. /internal paths are also unreachable
+        from outside because the gateway blocks them. Exact mechanism to be
+        decided in docs/security.md (service JWT or mutual TLS).
+
+  parameters:
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Please log in again.
+
+  schemas:
+    Stats:
+      type: object
+      required: [hp, attack, defense, speed]
+      properties:
+        hp:
+          type: integer
+        attack:
+          type: integer
+        defense:
+          type: integer
+        speed:
+          type: integer
+
+    SnapshotMember:
+      type: object
+      required: [owned_id, monster_id, stats]
+      additionalProperties: false
+      properties:
+        owned_id:
+          type: string
+          format: uuid
+        monster_id:
+          type: string
+        stats:
+          $ref: '#/components/schemas/Stats'
+
+    Outcome:
+      type: object
+      required: [team_score, encounter_score, seed]
+      properties:
+        team_score:
+          type: integer
+        encounter_score:
+          type: integer
+        seed:
+          type: integer
+
+    HistorySummary:
+      type: object
+      required: [run_id, encounter_id, encounter_name, status, ended_at]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        encounter_id:
+          type: string
+        encounter_name:
+          type: string
+        status:
+          type: string
+          enum: [success, failure, expired, abandoned]
+        ended_at:
+          type: string
+          format: date-time
+        reward_monster_id:
+          type: string
+          nullable: true
+
+    HistoryEntry:
+      type: object
+      required: [run_id, player_id, encounter_id, encounter_name, status, team, started_at, ended_at]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        player_id:
+          type: string
+          format: uuid
+        encounter_id:
+          type: string
+        encounter_name:
+          type: string
+        status:
+          type: string
+          enum: [success, failure, expired, abandoned]
+        team:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SnapshotMember'
+        outcome:
+          allOf:
+            - $ref: '#/components/schemas/Outcome'
+          nullable: true
+          description: Null for expired or abandoned runs
+        reward_monster_id:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string

@@ -1,0 +1,384 @@
+openapi: 3.0.3
+info:
+  title: Monster Tamers - Account service
+  version: 0.1.0
+  description: |
+    Registration, login (OAuth2 password grant, JWT), logout and player profile.
+    Covers US-01, US-02, US-04 (optional), US-05.
+
+    Constants (password rules, lockout, token lifetime) come from docs/game-rules.md.
+    Placeholder values used here: password >= 8 chars with a digit and a special
+    character; 5 failed logins -> 15 min lockout; access token lifetime 1 hour.
+
+    After a successful registration, Account calls Ownership
+    POST /internal/starter {player_id} so the new player gets the starter monsters (US-06).
+    That endpoint is documented in ownership.yaml.
+
+servers:
+  - url: http://127.0.0.1:4010
+    description: Prism mock server, for trying the API before the real service exists
+  - url: https://localhost:8443
+    description: API Gateway
+  - url: https://account:5000
+    description: Account service inside the docker network (internal calls only)
+
+tags:
+  - name: auth
+  - name: profile
+  - name: internal
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Create a new player account (US-01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: ash
+              password: "Pikachu@12"
+      responses:
+        '201':
+          description: Account created. The password is never returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+              example:
+                id: 3f6b1c2e-8a1d-4f0e-9c3b-2d7e5a1f9b44
+                username: ash
+                display_name: ash
+                avatar: default
+        '400':
+          description: Missing username, or password breaks the rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: invalid_password
+                message: Password must be at least 8 characters and contain a digit and a special character.
+        '409':
+          description: Username already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: username_taken
+                message: This username is already taken.
+
+  /auth/token:
+    post:
+      tags: [auth]
+      summary: Log in and get an access token (US-02, OAuth2 password grant)
+      description: |
+        Wrong username and wrong password give the
+        same error, so the response never says which one was wrong.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+            example:
+              grant_type: password
+              username: ash
+              password: "Pikachu@12"
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+                expires_in: 3600
+        '400':
+          description: |
+            Bad request or wrong credentials. Uses OAuth2 error codes:
+            invalid_request, unsupported_grant_type, invalid_grant (wrong username OR password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthError'
+              example:
+                error: invalid_grant
+                error_description: Invalid username or password.
+        '429':
+          description: Too many failed attempts for this username, locked out for a while
+          headers:
+            Retry-After:
+              description: Seconds until login attempts are accepted again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthError'
+              example:
+                error: too_many_attempts
+                error_description: Too many failed attempts. Try again later.
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with JSON and get an access token (US-02)
+      description: |
+        Same login as /auth/token (same checks, lockout and token), but takes JSON
+        instead of OAuth2 form data. Meant for the frontend. Both share one implementation.
+        Wrong username and wrong password give the same error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: ash
+              password: "Pikachu@12"
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                access_token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+                expires_in: 3600
+        '400':
+          description: Missing username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: invalid_request
+                message: Username and password are required.
+        '401':
+          description: Wrong username OR password (never says which)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: invalid_credentials
+                message: Invalid username or password.
+        '429':
+          description: Too many failed attempts for this username, locked out for a while
+          headers:
+            Retry-After:
+              description: Seconds until login attempts are accepted again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: too_many_attempts
+                message: Too many failed attempts. Try again later.
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Log out (token stops working)
+      description: The token's jti is added to a deny-list until it expires.
+      security:
+        - oauth2: []
+      responses:
+        '204':
+          description: Logged out
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me:
+    get:
+      tags: [profile]
+      summary: Get my own profile
+      security:
+        - oauth2: []
+      responses:
+        '200':
+          description: The logged-in player's profile (never the password)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [profile]
+      summary: Change display name or avatar (US-04, optional/green)
+      security:
+        - oauth2: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+            example:
+              display_name: Ash Ketchup
+              avatar: avatar_03
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          description: Empty or invalid name, or avatar not in the allowed list. Old values are kept.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /health:
+    get:
+      tags: [internal]
+      summary: Health check (internal, used by docker compose)
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes: {}
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid, expired or logged-out token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Please log in again.
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[A-Za-z0-9_]+$'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 20
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+
+    TokenRequest:
+      type: object
+      required: [grant_type, username, password]
+      additionalProperties: false
+      properties:
+        grant_type:
+          type: string
+          enum: [password]
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: |
+            JWT. Claims: sub (player id), exp, iat, jti.
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+          description: Seconds until the token expires
+
+    Player:
+      type: object
+      required: [id, username, display_name, avatar]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        display_name:
+          type: string
+        avatar:
+          type: string
+
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 30
+        avatar:
+          type: string
+          description: One of the allowed avatar ids
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    OAuthError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string

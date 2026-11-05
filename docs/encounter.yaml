@@ -1,0 +1,490 @@
+openapi: 3.0.3
+info:
+  title: Monster Tamers - Encounter service
+  version: 0.1.0
+  description: |
+    Available encounters, starting a run with a team, and resolving it.
+    Covers US-17, US-18, US-19, US-20 (US-21 abandon is green/optional).
+
+    A "run" is one attempt at an encounter by one player with one team.
+
+    Lifecycle of a run:
+      in_progress -> success | failure   (POST /runs/{run_id}/resolve)
+      in_progress -> expired             (not resolved within 10 minutes, counts as failure)
+      in_progress -> abandoned           (POST /runs/{run_id}/abandon, optional US-21)
+    A player can have only one run in_progress at a time.
+
+    The outcome is decided ONLY by this service, from the team snapshot taken at
+    start, the stats from the Bestiary and the encounter rules in
+    docs/encounter-rules.md. The client never sends an outcome, a reward or stats.
+    The random seed of each run is stored so every result can be recomputed.
+
+    When a run ends, this service (not the client):
+      1. asks Ownership to add the reward on success (idempotent on run_id)
+      2. sends the result and team snapshot to Historian (idempotent on run_id)
+    If one of these calls fails, it is retried; the run keeps its result.
+
+    Calls: Ownership GET /internal/players/{id}/teams/{team_id} and
+    POST /internal/players/{id}/rewards, Bestiary GET /internal/monsters,
+    Historian POST /internal/history.
+
+servers:
+  - url: http://127.0.0.1:4013
+    description: Prism mock server, for trying the API before the real service exists
+  - url: https://localhost:8443
+    description: API Gateway
+  - url: https://encounter:5003
+    description: Encounter service inside the docker network
+
+tags:
+  - name: encounters
+  - name: runs
+  - name: internal
+
+paths:
+  /encounters:
+    get:
+      tags: [encounters]
+      summary: List the encounters available now (US-17)
+      security:
+        - oauth2: []
+      responses:
+        '200':
+          description: Available encounters. Empty list if there are none (not an error).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Encounter'
+              example:
+                - encounter_id: river-ambush
+                  name: River ambush
+                  description: A wild Tidefin blocks the bridge.
+                  difficulty: 2
+                  wild_monster_id: tidefin
+                  reward_monster_id: tidefin
+                  max_team_size: 3
+                  available: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /encounters/{encounter_id}:
+    get:
+      tags: [encounters]
+      summary: Get one encounter's characteristics
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/EncounterId'
+      responses:
+        '200':
+          description: The encounter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Encounter'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /encounters/{encounter_id}/runs:
+    post:
+      tags: [runs]
+      summary: Start an encounter with one of my teams (US-18)
+      description: |
+        Checks the team with Ownership (must be the player's and valid), takes a
+        snapshot of it with stats from the Bestiary, and starts a run.
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/EncounterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRunRequest'
+            example:
+              team_id: c3d4e5f6-a7b8-4c9d-8e0f-1a2b3c4d5e6f
+      responses:
+        '201':
+          description: Run started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+              example:
+                run_id: 7e8f9a0b-1c2d-4e3f-8a4b-5c6d7e8f9a0b
+                encounter_id: river-ambush
+                status: in_progress
+                team:
+                  - owned_id: 9b2e4c1a-0f3d-4a7e-8c55-1d2b3c4d5e6f
+                    monster_id: flamepup
+                    stats: {hp: 40, attack: 55, defense: 30, speed: 70}
+                started_at: '2026-11-05T11:00:00Z'
+                expires_at: '2026-11-05T11:10:00Z'
+        '400':
+          $ref: '#/components/responses/MalformedRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The team belongs to another player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: forbidden
+                message: This team is not yours.
+        '404':
+          description: Encounter or team does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Encounter not available, or the player already has a run in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: run_in_progress
+                message: Finish your current encounter first.
+        '422':
+          description: The team breaks the game rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: invalid_team
+                message: A team has 1 to 3 monsters.
+
+  /runs/{run_id}:
+    get:
+      tags: [runs]
+      summary: Get a run and, once finished, its result (US-20)
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: The run. outcome and reward are set once it has ended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenRun'
+        '404':
+          $ref: '#/components/responses/RunNotFound'
+
+  /runs/{run_id}/resolve:
+    post:
+      tags: [runs]
+      summary: Resolve a run, the backend decides the outcome (US-19)
+      description: |
+        Takes NO request body. Any body (an outcome, a reward, stats) is rejected
+        with 400 and nothing changes (US-19 criterion 4, US-20 criterion 4).
+        Resolving a run that has already ended returns 409 and the result stays the same.
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: The run with its outcome and any reward
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+              example:
+                run_id: 7e8f9a0b-1c2d-4e3f-8a4b-5c6d7e8f9a0b
+                encounter_id: river-ambush
+                status: success
+                team:
+                  - owned_id: 9b2e4c1a-0f3d-4a7e-8c55-1d2b3c4d5e6f
+                    monster_id: flamepup
+                    stats: {hp: 40, attack: 55, defense: 30, speed: 70}
+                started_at: '2026-11-05T11:00:00Z'
+                expires_at: '2026-11-05T11:10:00Z'
+                ended_at: '2026-11-05T11:01:30Z'
+                outcome:
+                  team_score: 212
+                  encounter_score: 180
+                  seed: 48213
+                reward:
+                  monster_id: tidefin
+                  owned_id: 4a1f7d2b-6c3e-4b8a-9d10-2e3f4a5b6c7d
+        '400':
+          description: The request had a body. Clients cannot send outcomes or stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: body_not_allowed
+                message: The result is decided by the server.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenRun'
+        '404':
+          $ref: '#/components/responses/RunNotFound'
+        '409':
+          description: The run has already ended (resolved, expired or abandoned)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: run_already_ended
+                message: This encounter is already over.
+
+  /runs/{run_id}/abandon:
+    post:
+      tags: [runs]
+      summary: Leave a run, recorded as a failure (US-21, optional/green)
+      security:
+        - oauth2: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run ended with status abandoned, no reward
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ForbiddenRun'
+        '404':
+          $ref: '#/components/responses/RunNotFound'
+        '409':
+          description: The run has already ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags: [internal]
+      summary: Health check (used by docker compose)
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Player token from the Account service (/auth/token)
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes: {}
+
+  parameters:
+    EncounterId:
+      name: encounter_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9-]{1,40}$'
+      example: river-ambush
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    MalformedRequest:
+      description: The request body is missing fields or has the wrong format
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: invalid_request
+            message: team_id is required.
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Please log in again.
+    NotFound:
+      description: No encounter with this id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: encounter_not_found
+            message: This encounter does not exist.
+    ForbiddenRun:
+      description: The run belongs to another player
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: forbidden
+            message: This encounter is not yours.
+    RunNotFound:
+      description: No run with this id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: run_not_found
+            message: This encounter run does not exist.
+
+  schemas:
+    Stats:
+      type: object
+      required: [hp, attack, defense, speed]
+      properties:
+        hp:
+          type: integer
+        attack:
+          type: integer
+        defense:
+          type: integer
+        speed:
+          type: integer
+
+    Encounter:
+      type: object
+      required: [encounter_id, name, description, difficulty, wild_monster_id, max_team_size, available]
+      properties:
+        encounter_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+        wild_monster_id:
+          type: string
+          description: The wild monster faced, as in the Bestiary
+        reward_monster_id:
+          type: string
+          nullable: true
+          description: Monster granted on success, null if the encounter gives no reward
+        max_team_size:
+          type: integer
+        available:
+          type: boolean
+
+    StartRunRequest:
+      type: object
+      required: [team_id]
+      additionalProperties: false
+      properties:
+        team_id:
+          type: string
+          format: uuid
+
+    SnapshotMember:
+      type: object
+      required: [owned_id, monster_id, stats]
+      properties:
+        owned_id:
+          type: string
+          format: uuid
+        monster_id:
+          type: string
+        stats:
+          $ref: '#/components/schemas/Stats'
+
+    Outcome:
+      type: object
+      required: [team_score, encounter_score, seed]
+      description: How the result was computed, so it can be explained and recomputed
+      properties:
+        team_score:
+          type: integer
+        encounter_score:
+          type: integer
+        seed:
+          type: integer
+
+    Reward:
+      type: object
+      required: [monster_id, owned_id]
+      properties:
+        monster_id:
+          type: string
+        owned_id:
+          type: string
+          format: uuid
+
+    Run:
+      type: object
+      required: [run_id, encounter_id, status, team, started_at, expires_at]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        encounter_id:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, success, failure, expired, abandoned]
+        team:
+          type: array
+          description: Snapshot of the team when the run started, with stats
+          items:
+            $ref: '#/components/schemas/SnapshotMember'
+        started_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        outcome:
+          allOf:
+            - $ref: '#/components/schemas/Outcome'
+          nullable: true
+        reward:
+          allOf:
+            - $ref: '#/components/schemas/Reward'
+          nullable: true
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
