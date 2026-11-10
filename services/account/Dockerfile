@@ -1,0 +1,30 @@
+# Pinned base image (exact version, not "latest").
+# TODO (guide step 0): check hub.docker.com/_/python for the newest patch of
+# this line and use it, otherwise the Trivy scan in CI may fail on old packages.
+FROM python:3.15.2-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# A user without root rights. The requirements say every container runs in user mode.
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+
+WORKDIR /app
+
+# Install dependencies first so docker can cache this layer between builds.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
+
+# Everything after this line runs as the non-root user.
+USER app
+
+# Account service listens on port 5000.
+EXPOSE 5000
+
+# HTTPS directly in the service, using the certificate mounted by docker compose.
+CMD ["uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", "--port", "5000", \
+     "--ssl-keyfile", "/certs/service.key", \
+     "--ssl-certfile", "/certs/service.crt"]
