@@ -1,7 +1,4 @@
-# Pinned base image (exact version, not "latest").
-# TODO (guide step 0): check hub.docker.com/_/python for the newest patch of
-# this line and use it, otherwise the Trivy scan in CI may fail on old packages.
-FROM python:3.12.8-slim-bookworm
+FROM python:3.15.2-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -20,11 +17,11 @@ COPY app ./app
 # Everything after this line runs as the non-root user.
 USER app
 
-# TODO (guide step 1): each service has its own port. Bestiary is 5002.
-EXPOSE 5002
+# Historian service listens on port 5004.
+EXPOSE 5004
 
 # HTTPS directly in the service, using the certificate mounted by docker compose.
 CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", "--port", "5002", \
+     "--host", "0.0.0.0", "--port", "5004", \
      "--ssl-keyfile", "/certs/service.key", \
      "--ssl-certfile", "/certs/service.crt"]

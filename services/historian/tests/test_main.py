@@ -17,19 +17,6 @@ def test_health():
     assert response.json() == {"status": "ok"}
 
 
-def test_list_monsters_has_name_and_image():
-    response = client.get("/monsters")
-    assert response.status_code == 200
-    for monster in response.json():
-        assert monster["name"]
-        assert monster["image_url"]
-
-
-def test_get_unknown_monster_is_404():
-    response = client.get("/monsters/does-not-exist")
-    assert response.status_code == 404
-
-
-def test_get_monster_rejects_bad_id():
-    response = client.get("/monsters/BAD_ID!")
-    assert response.status_code in (400, 422)
+def test_history_not_implemented():
+    response = client.get("/history")
+    assert response.status_code == 501

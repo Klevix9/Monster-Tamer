@@ -16,6 +16,9 @@ SERVICES=(
   gateway
   monsters
   account
+  historian
+  encounter
+  ownership
 )
 
 DAYS=365

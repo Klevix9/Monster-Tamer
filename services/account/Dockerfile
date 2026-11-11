@@ -1,6 +1,3 @@
-# Pinned base image (exact version, not "latest").
-# TODO (guide step 0): check hub.docker.com/_/python for the newest patch of
-# this line and use it, otherwise the Trivy scan in CI may fail on old packages.
 FROM python:3.15.2-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
