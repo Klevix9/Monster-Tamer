@@ -67,7 +67,7 @@ jobs:
         run: docker build -t monster-tamers/gateway:ci gateway
 
       - name: Image vulnerabilities (Trivy)
-        uses: uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: monster-tamers/gateway:ci
           severity: CRITICAL,HIGH
@@ -119,10 +119,7 @@ jobs:
           # historian
           code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
                  --cacert certs/out/ca.crt https://localhost:8443/history)
-          test "$code" = "501"          
-
-
-          
+          test "$code" = "501"
 
       - name: Show logs if something failed
         if: failure()
