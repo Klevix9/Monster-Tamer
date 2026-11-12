@@ -10,7 +10,9 @@ WORKDIR /app
 
 # Install dependencies first so docker can cache this layer between builds.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip setuptools \
+    && rm -rf /usr/local/lib/python3.15/ensurepip
 
 COPY app ./app
 
