@@ -1,0 +1,167 @@
+[
+  {
+    "id": "7db5609b-5c83-419e-9d6d-2d35fbf25bf6",
+    "name": "Flameling",
+    "image": "images/7db5609b-5c83-419e-9d6d-2d35fbf25bf6.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "05db72de-92d5-4aa1-acd8-817b1502eaf9",
+    "name": "Aquaris",
+    "image": "images/05db72de-92d5-4aa1-acd8-817b1502eaf9.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "16b1ddfa-7825-4976-beb0-126719e8b165",
+    "name": "Stonehorn",
+    "image": "images/16b1ddfa-7825-4976-beb0-126719e8b165.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "d5427a84-a689-40dc-944c-27e4e8933816",
+    "name": "Emberpup",
+    "image": "images/d5427a84-a689-40dc-944c-27e4e8933816.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "1170add9-8bc4-418a-b713-8be42ba87caa",
+    "name": "Bubbleback",
+    "image": "images/1170add9-8bc4-418a-b713-8be42ba87caa.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "61ddf862-d223-467e-859f-e4d3817d597e",
+    "name": "Pebblit",
+    "image": "images/61ddf862-d223-467e-859f-e4d3817d597e.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "2dc2eabc-418c-434a-80b3-966db4c17448",
+    "name": "Shadowling",
+    "image": "images/2dc2eabc-418c-434a-80b3-966db4c17448.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "3a5f0e3f-145d-4a94-afad-ab75f1e1df8d",
+    "name": "Blazewing",
+    "image": "images/3a5f0e3f-145d-4a94-afad-ab75f1e1df8d.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "59620234-5d60-4be5-a472-eda4db0d04de",
+    "name": "Tidecaller",
+    "image": "images/59620234-5d60-4be5-a472-eda4db0d04de.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "bad5660b-afe8-445b-820c-30bf694eb635",
+    "name": "Mossback",
+    "image": "images/bad5660b-afe8-445b-820c-30bf694eb635.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "5a6bb4e8-9ed7-4e95-b825-fb2895d4e2fb",
+    "name": "Duskfang",
+    "image": "images/5a6bb4e8-9ed7-4e95-b825-fb2895d4e2fb.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "5366f4cb-6a0a-4e56-8a31-341a2db9e418",
+    "name": "Infernox",
+    "image": "images/5366f4cb-6a0a-4e56-8a31-341a2db9e418.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "37904665-bed7-4f9c-a2b5-de8968bcade2",
+    "name": "Leviathor",
+    "image": "images/37904665-bed7-4f9c-a2b5-de8968bcade2.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "58f712f5-2a68-44dd-b2d5-9f199469b5f9",
+    "name": "Voidreaper",
+    "image": "images/58f712f5-2a68-44dd-b2d5-9f199469b5f9.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  },
+  {
+    "id": "5af4af90-d9ca-4c66-8a57-6db7fe41f6af",
+    "name": "Terrawyrm",
+    "image": "images/5af4af90-d9ca-4c66-8a57-6db7fe41f6af.png",
+    "element": null,
+    "rarity": null,
+    "hp": null,
+    "attack": null,
+    "defence": null,
+    "is_starter": null
+  }
+]
