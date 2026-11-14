@@ -66,15 +66,15 @@ Designed but not implemented (the endpoints just answer 501 for now):
 
 - account, ownership, encounter, historian
 - game rules: [docs/game-rules.md](docs/game-rules.md)
-- how an encounter is resolved: "Gameplay Rules" in [docs/game-rules.md](docs/game-rules.md)
-
+- how an encounter is resolved: [docs/EncounterRules.md](docs/EncounterRules.md)
+- seed data for the monsters is created in `seed/` (not loaded by the service yet)
+  
 Missing:
 
 - databases (nothing is saved)
 - register / login / JWT, so no auth checks anywhere yet
 - the frontend
 - Bruno tests and Locust
-- seed data for the monsters
 
 Next thing we are doing is account (register + login) and then ownership, so that the loop register -> starters -> team -> encounter -> history works.
 
