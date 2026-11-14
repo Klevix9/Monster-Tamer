@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="830" viewBox="0 0 1040 830" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a-gw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="a-int" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/>
+    </marker>
+    <marker id="a-db" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <g id="badge-ok">
+      <rect width="66" height="18" rx="9" fill="#dcfce7" stroke="#16a34a"/>
+      <text x="33" y="13" font-size="10.5" text-anchor="middle" fill="#166534" font-weight="600">working</text>
+    </g>
+    <g id="badge-stub">
+      <rect width="66" height="18" rx="9" fill="#fef3c7" stroke="#d97706"/>
+      <text x="33" y="13" font-size="10.5" text-anchor="middle" fill="#92400e" font-weight="600">501 stub</text>
+    </g>
+  </defs>
+
+  <rect width="1040" height="830" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="24" y="38" font-size="22" font-weight="700" fill="#1e293b">Monster Tamer – Architecture</text>
+  <text x="24" y="60" font-size="13" fill="#64748b">Planned architecture, with the current implementation status of each part</text>
+
+  <!-- Backend container -->
+  <rect x="236" y="80" width="780" height="650" rx="14" fill="#f6f8fa" stroke="#475569" stroke-width="1.4"/>
+  <text x="256" y="104" font-size="13" font-weight="700" fill="#334155">Backend — docker compose up (one internal Docker network)</text>
+
+  <!-- Frontend (planned) -->
+  <rect x="16" y="345" width="152" height="96" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <text x="92" y="374" font-size="15" font-weight="700" text-anchor="middle" fill="#1e293b">Frontend</text>
+  <text x="92" y="394" font-size="11.5" text-anchor="middle" fill="#334155">own Docker container,</text>
+  <text x="92" y="409" font-size="11.5" text-anchor="middle" fill="#334155">outside compose and</text>
+  <text x="92" y="424" font-size="11.5" text-anchor="middle" fill="#334155">its network</text>
+
+  <!-- Frontend -> gateway -->
+  <line x1="168" y1="393" x2="290" y2="393" stroke="#334155" stroke-width="1.8" marker-end="url(#a-gw)"/>
+  <text x="202" y="384" font-size="11" text-anchor="middle" fill="#334155" font-weight="600">HTTPS</text>
+  <text x="202" y="410" font-size="11" text-anchor="middle" fill="#64748b">:8443</text>
+
+  <!-- Gateway -->
+  <rect x="290" y="122" width="74" height="588" rx="8" fill="#2e3a4b"/>
+  <g transform="translate(327,416) rotate(-90)">
+    <text x="0" y="-6" font-size="16" font-weight="700" text-anchor="middle" fill="#ffffff">API Gateway (nginx)</text>
+    <text x="0" y="14" font-size="11.5" text-anchor="middle" fill="#cbd5e1">only published port :8443 · /internal/* → 404</text>
+  </g>
+  <use href="#badge-ok" x="294" y="128" transform="scale(1)"/>
+
+  <!-- Gateway -> services -->
+  <g stroke="#334155" stroke-width="1.6" marker-end="url(#a-gw)">
+    <line x1="364" y1="167" x2="428" y2="167"/>
+    <line x1="364" y1="292" x2="428" y2="292"/>
+    <line x1="364" y1="417" x2="428" y2="417"/>
+    <line x1="364" y1="542" x2="428" y2="542"/>
+    <line x1="364" y1="667" x2="428" y2="667"/>
+  </g>
+
+  <!-- Services -->
+  <g font-size="11.5" fill="#334155" text-anchor="middle">
+    <!-- Historian -->
+    <rect x="430" y="122" width="260" height="90" rx="9" fill="#dbe7f5" stroke="#3b6aa0" stroke-width="1.5"/>
+    <text x="545" y="148" font-size="16" font-weight="700" fill="#1e293b">Historian</text>
+    <text x="560" y="170">past encounters · /history · :5004</text>
+    <text x="560" y="190" fill="#64748b">US-23, 24</text>
+    <use href="#badge-stub" x="616" y="130"/>
+
+    <!-- Encounter -->
+    <rect x="430" y="247" width="260" height="90" rx="9" fill="#dbe7f5" stroke="#3b6aa0" stroke-width="1.5"/>
+    <text x="545" y="273" font-size="16" font-weight="700" fill="#1e293b">Encounter</text>
+    <text x="560" y="295">start / resolve runs · /encounters, /runs · :5003</text>
+    <text x="560" y="315" fill="#64748b">US-17 to 22 · decides outcome &amp; reward</text>
+    <use href="#badge-stub" x="616" y="255"/>
+
+    <!-- Monsters -->
+    <rect x="430" y="372" width="260" height="90" rx="9" fill="#dbe7f5" stroke="#3b6aa0" stroke-width="1.5"/>
+    <text x="545" y="398" font-size="16" font-weight="700" fill="#1e293b">Monsters</text>
+    <text x="560" y="420">catalogue, images, stats · /monsters · :5002</text>
+    <text x="560" y="440" fill="#64748b">US-10, 11</text>
+    <use href="#badge-ok" x="616" y="380"/>
+
+    <!-- Ownership -->
+    <rect x="430" y="497" width="260" height="90" rx="9" fill="#dbe7f5" stroke="#3b6aa0" stroke-width="1.5"/>
+    <text x="545" y="523" font-size="16" font-weight="700" fill="#1e293b">Ownership</text>
+    <text x="560" y="545">collection &amp; teams · /collection, /teams · :5001</text>
+    <text x="560" y="565" fill="#64748b">US-08, 09, 12, 14, 15, 16</text>
+    <use href="#badge-stub" x="616" y="505"/>
+
+    <!-- Account -->
+    <rect x="430" y="622" width="260" height="90" rx="9" fill="#dbe7f5" stroke="#3b6aa0" stroke-width="1.5"/>
+    <text x="545" y="648" font-size="16" font-weight="700" fill="#1e293b">Account</text>
+    <text x="560" y="670">register, login (JWT), profile · /auth, /me · :5000</text>
+    <text x="560" y="690" fill="#64748b">US-01, 02, 04, 05</text>
+    <use href="#badge-stub" x="616" y="630"/>
+  </g>
+
+  <!-- Internal service-to-service calls (red) -->
+  <g stroke="#c0392b" stroke-width="1.7" fill="none" marker-end="url(#a-int)">
+    <line x1="520" y1="247" x2="520" y2="214"/>   <!-- Encounter -> Historian -->
+    <line x1="520" y1="337" x2="520" y2="370"/>   <!-- Encounter -> Monsters -->
+    <line x1="520" y1="497" x2="520" y2="464"/>   <!-- Ownership -> Monsters -->
+    <line x1="520" y1="622" x2="520" y2="589"/>   <!-- Account -> Ownership -->
+    <polyline points="690,268 730,268 730,572 692,572"/> <!-- Encounter -> Ownership -->
+  </g>
+  <g font-size="10.5" fill="#c0392b" font-weight="600">
+    <text x="528" y="235">result + team snapshot</text>
+    <text x="528" y="358">monster stats</text>
+    <text x="528" y="485">monster check + starters</text>
+    <text x="528" y="610">give starter monsters</text>
+    <text x="737" y="352">team check</text>
+    <text x="737" y="366">+ reward</text>
+  </g>
+
+  <!-- Databases (planned) -->
+  <g id="dbs" stroke="#64748b" stroke-width="1.4" stroke-dasharray="5 3">
+    <!-- cylinder helper: top ellipse at cy, body height 46 -->
+    <path d="M830,152 v38 a75,11 0 0 0 150,0 v-38" fill="#eef1f5"/><ellipse cx="905" cy="152" rx="75" ry="11" fill="#e2e8f0"/>
+    <path d="M830,277 v38 a75,11 0 0 0 150,0 v-38" fill="#eef1f5"/><ellipse cx="905" cy="277" rx="75" ry="11" fill="#e2e8f0"/>
+    <path d="M830,402 v38 a75,11 0 0 0 150,0 v-38" fill="#eef1f5"/><ellipse cx="905" cy="402" rx="75" ry="11" fill="#e2e8f0"/>
+    <path d="M830,527 v38 a75,11 0 0 0 150,0 v-38" fill="#eef1f5"/><ellipse cx="905" cy="527" rx="75" ry="11" fill="#e2e8f0"/>
+    <path d="M830,652 v38 a75,11 0 0 0 150,0 v-38" fill="#eef1f5"/><ellipse cx="905" cy="652" rx="75" ry="11" fill="#e2e8f0"/>
+  </g>
+  <g font-size="12" text-anchor="middle" fill="#1e293b">
+    <text x="905" y="182">History DB</text>
+    <text x="905" y="307">Runs DB</text>
+    <text x="905" y="432">Monsters DB</text>
+    <text x="905" y="551">Collections</text><text x="905" y="566">&amp; Teams DB</text>
+    <text x="905" y="682">Users DB</text>
+  </g>
+
+  <!-- Service <-> DB -->
+  <g stroke="#64748b" stroke-width="1.4" marker-start="url(#a-db)" marker-end="url(#a-db)">
+    <line x1="692" y1="175" x2="828" y2="175"/>
+    <line x1="692" y1="300" x2="828" y2="300"/>
+    <line x1="692" y1="425" x2="828" y2="425"/>
+    <line x1="692" y1="550" x2="828" y2="550"/>
+    <line x1="692" y1="675" x2="828" y2="675"/>
+  </g>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#334155">
+    <line x1="24" y1="762" x2="60" y2="762" stroke="#334155" stroke-width="1.6" marker-end="url(#a-gw)"/>
+    <text x="68" y="766">public route through the gateway</text>
+    <line x1="290" y1="762" x2="326" y2="762" stroke="#c0392b" stroke-width="1.7" marker-end="url(#a-int)"/>
+    <text x="334" y="766">internal call (/internal/*), caller → callee, never via the client</text>
+    <rect x="770" y="753" width="34" height="18" rx="4" fill="none" stroke="#64748b" stroke-dasharray="5 3"/>
+    <text x="812" y="766">dashed = planned, not built yet</text>
+
+    <use href="#badge-ok" x="24" y="784"/>
+    <text x="96" y="797">implemented</text>
+    <use href="#badge-stub" x="190" y="784"/>
+    <text x="262" y="797">endpoints answer 501</text>
+    <text x="420" y="797" font-weight="600">All connections use HTTPS (certs from our own CA) · all containers run as non-root</text>
+  </g>
+</svg>

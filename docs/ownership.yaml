@@ -18,7 +18,7 @@ info:
 
     The player is always taken from the token (sub claim), never from the request body.
 
-    Calls: Bestiary GET /internal/monsters (check monsters exist) and
+    Calls: Monsters GET /internal/monsters (check monsters exist) and
     GET /internal/starters (starter set).
     Called by: Account (starters) and Encounter (team snapshot, rewards).
 
@@ -336,7 +336,7 @@ paths:
         '400':
           $ref: '#/components/responses/MalformedRequest'
         '404':
-          description: The monster does not exist in the Bestiary
+          description: The monster does not exist in the Monsters service
           content:
             application/json:
               schema:
@@ -450,7 +450,7 @@ components:
           description: This specific copy of the monster
         monster_id:
           type: string
-          description: The species, as in the Bestiary
+          description: The species, as in the Monsters service
         source:
           type: string
           enum: [starter, encounter]
