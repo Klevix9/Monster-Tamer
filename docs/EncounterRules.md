@@ -79,7 +79,7 @@ Damage from the encounter is not kept.
 Example: attack 72, bonus 1.00, luck 1.05, defender's defence 75:
 `72 x 1.00 x 1.05 x 100 / 175 = 43.2`, so the damage is 43.
 
-## 6. Random numbers and the seed (TBD)
+## 6. Random numbers and the seed
 
 1. When the backend resolves an encounter, it makes a seed of 16 random letters and numbers and saves it.
 2. All random values come from the seed.
@@ -90,7 +90,7 @@ Example: attack 72, bonus 1.00, luck 1.05, defender's defence 75:
    - Divide it by `0xFFFFFFFF`.
 4. Luck = 0.85 + (0.30 x U).
 5. Labels for the attacks:
- `1:team` for the team's first attack in round 1.
+- `1:team` for the team's first attack in round 1.
 - `1:enemy` for the wild monster's attack in round 1.
 - `2:team` for the team's attack in round 2.
 - `2:enemy` for the wild monster's attack in round 2.
@@ -102,9 +102,8 @@ Continue the same pattern for later rounds. If the wild monster is defeated befo
 
 1. If the player loses, there is no reward (US-12).
 2. If the player wins, the player receives the wild monster.
-3. If the player loses, the player receives nothing (US-12).Otherwise there is no reward.
-4. If the collection is full, there is no reward.
-5. A reward can only be given once for an encounter.
+3. If the collection is full, there is no reward.
+4. A reward can only be given once for an encounter.
 
 The new monster gets its IVs and gender from the seed. Each IV is from 0 to 10:
 
@@ -134,7 +133,6 @@ The wild monster is Duskfang:
 | Attack | 90 |
 | Defence | 50 |
 | Difficulty | 1.5 |
-| Reward chance | 0.5 (50%) |
 
 After applying the difficulty:
 
@@ -160,7 +158,7 @@ Duskfang is Dark, so the element bonus is x1.00 for all of them.
 - Stonehorn takes over and defeats Duskfang in round 9.
 - The player wins.
 
-Reward: `U = 0.2031` is below 0.5, so the player gets Duskfang. Its IVs are 0/10/1 and it is female.
+The player wins, so the player gets Duskfang. Its IVs are 0/10/1 and it is female.
 
 ### Seed `0123456789abcdef`
 
