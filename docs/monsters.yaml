@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Monster Tamers - Bestiary service
+  title: Monster Tamers - Monsters service
   version: 0.1.0
   description: |
     The catalogue of every monster in the game: names, images and stats.
@@ -18,8 +18,8 @@ servers:
     description: Prism mock server, for trying the API before the real service exists
   - url: https://localhost:8443
     description: API Gateway (player endpoints only, /internal is blocked)
-  - url: https://bestiary:5002
-    description: Bestiary service inside the docker network
+  - url: https://monsters:5002
+    description: Monsters service inside the docker network
 
 tags:
   - name: monsters

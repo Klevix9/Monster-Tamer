@@ -15,8 +15,8 @@ info:
     A player can have only one run in_progress at a time.
 
     The outcome is decided ONLY by this service, from the team snapshot taken at
-    start, the stats from the Bestiary and the encounter rules in
-    docs/encounter-rules.md. The client never sends an outcome, a reward or stats.
+    start, the stats from the Monsters service and the encounter rules in
+    docs/game-rules.md. The client never sends an outcome, a reward or stats.
     The random seed of each run is stored so every result can be recomputed.
 
     When a run ends, this service (not the client):
@@ -25,7 +25,7 @@ info:
     If one of these calls fails, it is retried; the run keeps its result.
 
     Calls: Ownership GET /internal/players/{id}/teams/{team_id} and
-    POST /internal/players/{id}/rewards, Bestiary GET /internal/monsters,
+    POST /internal/players/{id}/rewards, Monsters GET /internal/monsters,
     Historian POST /internal/history.
 
 servers:
@@ -95,7 +95,7 @@ paths:
       summary: Start an encounter with one of my teams (US-18)
       description: |
         Checks the team with Ownership (must be the player's and valid), takes a
-        snapshot of it with stats from the Bestiary, and starts a run.
+        snapshot of it with stats from the Monsters service, and starts a run.
       security:
         - oauth2: []
       parameters:
@@ -391,7 +391,7 @@ components:
           maximum: 5
         wild_monster_id:
           type: string
-          description: The wild monster faced, as in the Bestiary
+          description: The wild monster faced, as in the Monsters service
         reward_monster_id:
           type: string
           nullable: true

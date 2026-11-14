@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: Monster Tamers - API Gateway
+  description: The only entry point for clients (HTTPS on port 8443).
+    Routes player requests to the 5 services. Paths under /internal/* are
+    blocked and answer 404. The operations themselves are defined in the
+    service specs and referenced from here.
+  version: 0.5.0
+
+servers:
+  - url: https://localhost:8443
+    description: API Gateway
+
+tags:
+  - name: auth
+    description: Operations for players (login, register, etc.)
+  - name: profile
+    description: Operations for players (get, update, etc.)
+  - name: collection
+    description: Operations for collection (get, update, etc.)
+  - name: teams
+    description: Operations for teams (get, update, etc.)
+  - name: monsters
+    description: Operations for monsters (get, update, etc.)
+  - name: encounters
+    description: Operations for encounters (get, update, etc.)
+  - name: runs
+    description: Operations for runs (get, update, etc.)  
+  - name: history
+    description: Operations for history (get, update, etc.)
+  - name: gateway
+    description: Operations for the gateway itself (health check, etc.)
+
+
+paths:
+  /health:
+    get:
+      tags: [gateway]
+      summary: Gateway health check
+      responses:
+        '200':
+          description: The gateway is up. It answers by itself without calling any service, so this does not mean the services are up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              example:
+                status: ok
+
+  # account
+  /auth/register:
+    $ref: './account.yaml#/paths/~1auth~1register'
+  /auth/token:
+    $ref: './account.yaml#/paths/~1auth~1token'
+  /auth/login:
+    $ref: './account.yaml#/paths/~1auth~1login'
+  /auth/logout:
+    $ref: './account.yaml#/paths/~1auth~1logout'
+  /me:
+    $ref: './account.yaml#/paths/~1me'
+
+  # ownership
+  /collection:
+    $ref: './ownership.yaml#/paths/~1collection'
+  /teams:
+    $ref: './ownership.yaml#/paths/~1teams'
+  /teams/{team_id}:
+    $ref: './ownership.yaml#/paths/~1teams~1{team_id}'
+  /teams/validate:
+    $ref: './ownership.yaml#/paths/~1teams~1validate'
+
+  # monsters
+  /monsters:
+    $ref: './monsters.yaml#/paths/~1monsters'
+  /monsters/{monster_id}:
+    $ref: './monsters.yaml#/paths/~1monsters~1{monster_id}'
+  /monsters/{monster_id}/image:
+    $ref: './monsters.yaml#/paths/~1monsters~1{monster_id}~1image'
+
+  # encounter
+  /encounters:
+    $ref: './encounter.yaml#/paths/~1encounters'
+  /encounters/{encounter_id}:
+    $ref: './encounter.yaml#/paths/~1encounters~1{encounter_id}'
+  /encounters/{encounter_id}/runs:
+    $ref: './encounter.yaml#/paths/~1encounters~1{encounter_id}~1runs'
+  /runs/{run_id}:
+    $ref: './encounter.yaml#/paths/~1runs~1{run_id}'
+  /runs/{run_id}/resolve:
+    $ref: './encounter.yaml#/paths/~1runs~1{run_id}~1resolve'
+  /runs/{run_id}/abandon:
+    $ref: './encounter.yaml#/paths/~1runs~1{run_id}~1abandon'
+
+  # historian
+  /history:
+    $ref: './historian.yaml#/paths/~1history'
+  /history/{run_id}:
+    $ref: './historian.yaml#/paths/~1history~1{run_id}'
+
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: Player token from the Account service (/auth/token)
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes: {}
