@@ -1,4 +1,38 @@
-import * as api from "./api.js"
+import * as _api from "./api.js"
+
+class RequestInFlightError extends Error {
+    constructor() {
+        this.name = "RequestInFlightError"
+    }
+}
+
+function requestProxy(api) {
+    let busy = false;
+
+    return new Proxy(api, {
+        get(target, property) {
+            const original = target[property]
+            
+            if(typeof(original) != "function") {
+                return original
+            }
+
+            return async (...args) => {
+                if(busy) {
+                    throw new RequestInFlightError()
+                }
+
+                busy = true;
+
+                try {
+                    await original.apply(target, args)
+                } finally {
+                    busy = false;
+                }
+            }
+        }
+    })
+}
 
 function eCreate(element, classlist = [], id = "") {
     let el = document.createElement(element)
@@ -34,10 +68,52 @@ class HistorySummary {
     }
 }
 
+class MonsterSpecies {
+    static id_to_species = {}
+
+    constructor(
+        id,
+        name,
+        image_url,
+        element,
+        rarity
+    ) {
+        this.id        = id;
+        this.name      = name
+        this.image_url = image_url
+        this.element   = element
+        this.rarity    = rarity
+        id_to_species[this.id] = this
+    }
+}
+
 class Monster {
-    constructor(id, img) {
-        this.id  = id
-        this.img = img
+    constructor(
+        owned_id,
+        species,
+        source,
+        obtained_at
+    ) {
+        this.owned_id    = owned_id;
+        this.species     = species;
+        this.source      = source;
+        this.obtained_at = obtained_at;
+    }
+
+    static async fromJson(obj) {
+        mons = new Monster()
+        mons.owned_id    = obj.owned_id
+        mons.source      = obj.source
+        mons.obtained_at = obj.obtained_at
+        if(!MonsterSpecies.id_to_species[obj.monster_id]) {
+            try {
+                mons.species = MonsterSpecies.fromJson(await api.getMonster(obj.monster_id))
+            } catch {
+                
+            }
+        } else {
+
+        }
     }
 
     displayedAttrs() {
@@ -119,11 +195,6 @@ class Encounter {
     }
 }
 
-
-/*There needs to be a system to stop the user from spamming buttons (= sending too many requests) and breaking the ui:
-    - Click events disabled after a request gets sent (and reenabled when it finishes)
-    - Some kind of intermidiate Request class that only handles one requests and rejects all others until it is done
-*/
 class Screen {
     constructor(selector) {
         this.element = document.querySelector(selector)
@@ -134,10 +205,10 @@ class Screen {
         this[name] = this.element.querySelector(selector)
     }
 
-    onShow() {}
+    async onShow() {}
 
-    show() {
-        this.onShow()
+    async show() {
+        await this.onShow()
         this.resume()
     }
 
@@ -156,10 +227,10 @@ class ScreenTransitions {
         this.history = [];
     }
 
-    changeTo(screen) {
+    async changeTo(screen) {
         this.current_screen.hide()
         this.history.push(this.current_screen)
-        screen.show()
+        await screen.show()
         this.current_screen = screen;
     }
 
@@ -172,13 +243,13 @@ class ScreenTransitions {
         this.current_screen.resume()
     }
 
-    previousReload() {
+    async previousReload() {
         if(this.history.length == 0) {
             return;
         }
         this.current_screen.hide()
         this.current_screen = this.history.pop()
-        this.current_screen.show()
+        await this.current_screen.show()
     }
 
     clearHistory() {
@@ -266,6 +337,8 @@ function resolveEncounter() {
 
 // END TEST FUNCTIONS
 
+let api = requestProxy(_api)
+
 let screens = {}
 screens.login                = new Screen("section#login")
 screens.main                 = new Screen("section#main")
@@ -277,7 +350,7 @@ screens.history              = new Screen("section#history")
 screens.monster_details      = new Screen("section#monster-details")
 screens.encounter_resolution = new Screen("section#encounter-resolution")
 
-screens.login.show();
+await screens.login.show();
   
 let transitions = new ScreenTransitions(screens.login)
 document.querySelectorAll("button.back-btn").forEach((v)=>{v.addEventListener("click", ()=>{transitions.previous()})})
@@ -292,13 +365,22 @@ screens.login.set("error_text", "div#error_text")
 screens.login.set("login_btn", "button#login-btn")
 screens.login.set("register_btn", "button#register-btn")
 
-function login_callback() {
-    //TODO: ACTUAL API CALLS
-    transitions.changeTo(screens.main)
+async function login_callback() {
+    try {
+        await api.login(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
+        await transitions.changeTo(screens.main)
+    } catch {
+        // SET ERROR MESSAGE SOMEWHEEEEEEEEEERE
+    } 
 }
 
-function register_callback() {
-    //TODO: ACTUAL API CALLS
+async function register_callback() {
+    try{
+        //Ignore value for now
+        await api.register(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
+    } catch {
+        // SET ERROR MESSAGE SOMEWHEEEEEEEEEERE
+    }
 }
 
 screens.login.login_btn.addEventListener("click", login_callback)
@@ -312,29 +394,34 @@ screens.main.set("team_btn", "button#team-btn")
 screens.main.set("enc_btn", "button#enc-btn")
 screens.main.set("hist_btn", "button#hist-btn")
 screens.main.set("logout_btn", "button#logout-btn")
+screens.main.set("bestiary", "button#bestiary-btn")
 
-function coll_btn_callback() {
-    //TODO: ACTUAL API CALLS
-    transitions.changeTo(screens.collection)
+async function coll_btn_callback() {
+    try{
+        await transitions.changeTo(screens.collection)
+    } catch {
+        //DO SOMETHING
+    }
 }
 
-function team_btn_callback() {
-    //TODO: ACTUAL API CALLS
-    transitions.changeTo(screens.teams)
+async function team_btn_callback() {
+    await transitions.changeTo(screens.teams)
 }
 
-function enc_btn_callback() {
-    //TODO: ACTUAL API CALLS
-    transitions.changeTo(screens.encounters)
+async function enc_btn_callback() {
+    await transitions.changeTo(screens.encounters)
 }
 
-function hist_btn_callback() {
-    //TODO: ACTUAL API CALLS
-    transitions.changeTo(screens.history)
+async function hist_btn_callback() {
+    await transitions.changeTo(screens.history)
 }
 
-function logout_btn_callback() {
-    //TODO: ACTUAL API CALLS
+async function logout_btn_callback() {
+    try {
+        await api.logout()
+    } catch {
+
+    }
 }
 
 screens.main.coll_btn.addEventListener("click", coll_btn_callback)
@@ -348,8 +435,8 @@ screens.main.logout_btn.addEventListener("click", logout_btn_callback)
 /*COLLECTION SCREEN*/
 /*******************/
 screens.collection.set("table", "table#coll-tab")
-screens.collection.onShow = function() {
-    let collection = getCollection()
+screens.collection.onShow = async function() {
+    let collection = await api.getCollection()
     this.element.removeChild(this.table)
     this.table = eCreate("table", [], "coll-tab")
     for(let monster of collection){
@@ -491,7 +578,7 @@ screens.team_editor.set("table", "table#team-selector-table")
 /*HISTORY*/
 /*********/
 screens.history.set("table", "table#history-table")
-screens.history.onShow = function(){
+screens.history.onShow = async function(){
     this.element.removeChild(this.table)
     this.table = eCreate("table", ["no-b"], "history-table")
     let hist = getHistorySummaries()
@@ -565,12 +652,12 @@ screens.encounters.onShow = function() {
             max_team_size
         ])
 
-        tr.addEventListener("click", ()=>{
+        tr.addEventListener("click", async ()=>{
                 let team_id = this.selector.selectedOptions[0].value
                 let enc_id  = encounter.encounter_id
                 screens.encounter_resolution.set_team_id(team_id)
                 screens.encounter_resolution.set_encounter_id(enc_id)
-                transitions.changeTo(screens.encounter_resolution)
+                await transitions.changeTo(screens.encounter_resolution)
             })
 
         this.table.appendChild(tr)
@@ -586,7 +673,7 @@ screens.encounter_resolution.set("text", "div#resolution-text")
 screens.encounter_resolution.set("backr_btn", "button.back-and-reload")
 screens.encounter_resolution.set_team_id      = function(team_id) {this.team_id = team_id}
 screens.encounter_resolution.set_encounter_id = function(enc_id) {this.encounter_id = enc_id}
-screens.encounter_resolution.onShow = function() {
+screens.encounter_resolution.onShow = async function() {
     this.backr_btn.classList.add(["hidden"])
     this.backr_btn.disabled = true
     this.text.innerText = "Resolving"

@@ -98,6 +98,12 @@ export async function logout() {
   }
 }
 
+export function getProfile() {
+  return request("GET", "/me")
+}
+
+//changeProfile() GREEN
+
 // ---------------------------------------------------------------------------
 // Bestiary
 // ---------------------------------------------------------------------------
@@ -105,5 +111,79 @@ export function getMonsters() {
   return request("GET", "/monsters");
 }
 
-// TODO: one small function per endpoint in section 5,
-// e.g. getCollection(), createTeam(name, members), startRun(encounterId, teamId), ...
+export function getMonster(id) {
+  return request("GET", `/monsters/${id}`)
+}
+
+export function getImage(id) {
+  return request("GET", `/monsters/${id}/image`)
+}
+
+// ---------------------------------------------------------------------------
+// Enocunters
+// ---------------------------------------------------------------------------
+export function getEncounters() {
+  return request("GET", "/encounters")
+}
+
+export function getEncounter(id) {
+  return request("GET", `/encounter/${id}`)
+}
+
+export function startEncounter(id) {
+  return request("POST", `/encounter/${id}/runs`)
+}
+
+export function getRun(id) {
+  return request("GET", `/runs/${id}`)
+}
+
+export function resolveRun(id) {
+  return request("POST", `/runs/${id}/resolve`)
+}
+
+export function abandonRun(id) {
+  return request("POST", `/runs/${id}/abandon`)
+}
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+export function getHistory() {
+  return request("GET", `/history`)
+}
+
+export function getHistoryElement(id) {
+  return request("GET", `/history/${id}`)
+}
+
+// ---------------------------------------------------------------------------
+// Ownership
+// ---------------------------------------------------------------------------
+export function getCollection() {
+  return request("GET", `/collection`)
+}
+
+export function getTeams() {
+  return request("GET", `/teams`)
+}
+
+export function createTeam({name, members}) {
+  return request("POST", "/teams", {json: {name, members}})
+}
+
+export function getTeam(id) {
+  return request("GET", `/teams/${id}`)
+}
+
+export function editTeam(id, {name, members}) {
+  return request("PUT", `/teams/${id}`, {json: {name, members}})
+}
+
+export function deleteTeam(id) {
+  return request("DELETE", `/teams/${id}`)
+}
+
+export function validateTeam({name, members}) {
+  return request("POST", "/teams/validate", {json: {name, members}})
+}
