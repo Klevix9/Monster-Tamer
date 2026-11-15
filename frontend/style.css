@@ -1,0 +1,75 @@
+body{
+    background-color: #143e3f;
+    margin: 0;
+}
+
+.container{
+    width: 100%;
+    height: 100%;
+    margin: 8px;
+    padding: 5px;
+    background-color: #282828;
+    color: white;
+    border: 1px solid #888888;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+}
+
+.login-input{
+    margin-top: 5px;
+    margin-bottom: 5px;
+    width: 30%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.login-input > input{
+    width: 80%;
+}
+
+.section-hidden {
+    display: none !important;
+}
+
+#error-text {
+    color: red;
+}
+
+section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+}
+
+table, td, th, tr {
+    border: 1px solid white;
+    border-collapse: collapse;
+}
+
+.no-b {
+    border: none;
+}
+
+.b-r {
+    border-right: 1px solid white;
+}
+
+td, tr {
+    padding: 1px;
+}
+
+.bordered {
+    border: 1px solid white;
+}
+
+.selected {
+    border: 1px solid red;
+}
