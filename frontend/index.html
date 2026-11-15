@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="./style.css"/>
+        <title>Monster tamer</title>
+    </head>
+    <body>
+        <div class="container">
+            <section id="login">
+                <h1>
+                    Monster Tamer
+                </h1>
+                <div class="login-input">
+                    <label for="usrname-ipt">Username:</label>
+                    <input name="usrname-ipt" id="usrname-ipt" type="text"/>
+                </div>
+                <div class="login-input">
+                    <label for="pwd-ipt">Password:</label>
+                    <input name="pwd-ipt" id="pwd-ipt" type="password"/>
+                </div>
+                <div>
+                    <button id="login-btn">Login</button>
+                    <button id="register-btn">Register</button>
+                </div>
+            </section>
+
+            <section id="main">
+                <div>
+                    <button id="coll-btn">Collection</button>
+                    <button id="team-btn">Teams</button>
+                </div>
+                <div>
+                    <button id="enc-btn">Encounters</button>
+                    <button id="hist-btn">History</button>
+                </div>
+                <button id="logout-btn">Log out</button>
+            </section>
+
+            <section id="collection">
+                <button class="back-btn">&lt;- back</button>
+                <table id="coll-tab">
+                </table>
+            </section>
+
+            <section id="monster-details">
+                <button class="back-btn">&lt;- back</button>
+                <div class="img-container">
+                </div>
+                <div class="name-container">
+                </div>
+                <div class="stats-container">
+                </div>
+            </section>
+
+            <section id="teams">
+                <button class="back-btn">&lt;- back</button>
+                <button id="new-team-btn">New team</button>
+                <table id="team-table">
+                </table>
+            </section>
+
+            <section id="team-editor">
+                <div>
+                    <button class="back-btn">&lt;- back</button>
+                    <button id="save-team-btn">Save</button>
+                </div>
+                <input type="text" id="team-name-ipt"/>
+                <table id="team-selector-table">
+                </table>
+            </section>
+
+            <section id="encounters">
+                <button class="back-btn">&lt;- back</button>
+                <select id="encounter-team-selector"></select>
+                <table id="encounters-table"></table>
+            </section>
+
+            <section id="history">
+                <button class="back-btn">&lt;- back</button>
+                <table id="history-table"></table>
+            </section>
+
+            <section id="encounter-resolution">
+                <div id="resolution-text">
+                </div>
+                <button class="back-and-reload">&lt;- back</button>
+            </section>
+        </div>
+        <script type="module" src="js/app.js"></script>
+    </body>
+</html>
