@@ -1,3 +1,7 @@
+export const HTTP_UNAUTHORIZED = 401;
+export const HTTP_NO_CONTENT   = 204;
+
+
 const USE_MOCKS = false;
 
 const GATEWAY = "https://localhost:8443";
@@ -43,7 +47,7 @@ function errorMessage(status, data) {
   if (data && data.message) return data.message;                 // our {error, message}
   if (data && data.error_description) return data.error_description; // OAuth2 errors
   if (data && typeof data.detail === "string") return data.detail;   // FastAPI default
-  if (status === 401) return "Please log in again.";
+  if (status === HTTP_UNAUTHORIZED) return "Please log in again.";
   return `Something went wrong (error ${status}).`;
 }
 
@@ -67,8 +71,8 @@ async function request(method, path, { json, form } = {}) {
     throw new ApiError(0, "Can't reach the server. Is the backend running and the certificate trusted?");
   }
 
-  if (response.status === 401) forgetToken();
-  if (response.status === 204) return null;
+  if (response.status === HTTP_UNAUTHORIZED) forgetToken();
+  if (response.status === HTTP_NO_CONTENT) return null;
 
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new ApiError(response.status, errorMessage(response.status, data));

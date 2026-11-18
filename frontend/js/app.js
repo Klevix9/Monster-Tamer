@@ -1,4 +1,4 @@
-import * as _api from "./api.js"
+import * as api from "./proxy.js"
 
 class RequestInFlightError extends Error {
     constructor() {
@@ -51,6 +51,12 @@ function eCreateM(element, count, classlist = [], id = "") {
     return ls
 }
 
+function imgTag(src) {
+    let img = eCreate("img")
+    img.src = src
+    return img
+}
+
 function appendAllChildren(el, children) {
     for(let child of children) {
         el.appendChild(child)
@@ -69,8 +75,6 @@ class HistorySummary {
 }
 
 class MonsterSpecies {
-    static id_to_species = {}
-
     constructor(
         id,
         name,
@@ -78,52 +82,50 @@ class MonsterSpecies {
         element,
         rarity
     ) {
-        this.id        = id;
-        this.name      = name
-        this.image_url = image_url
-        this.element   = element
-        this.rarity    = rarity
+        this.id                = id;
+        this.name              = name
+        this.image_url         = image_url
+        this.element           = element
+        this.rarity            = rarity
         id_to_species[this.id] = this
     }
 }
 
 class Monster {
-    constructor(
-        owned_id,
-        species,
-        source,
-        obtained_at
-    ) {
-        this.owned_id    = owned_id;
-        this.species     = species;
-        this.source      = source;
-        this.obtained_at = obtained_at;
+    owned_id;
+    monster_id;
+
+    static fromJson(obj) {
+        let mons = new Monster()
+        mons.owned_id   = obj.owned_id
+        mons.monster_id = obj.monster_id 
+        return mons
     }
 
-    static async fromJson(obj) {
-        mons = new Monster()
-        mons.owned_id    = obj.owned_id
-        mons.source      = obj.source
-        mons.obtained_at = obj.obtained_at
-        if(!MonsterSpecies.id_to_species[obj.monster_id]) {
-            try {
-                mons.species = MonsterSpecies.fromJson(await api.getMonster(obj.monster_id))
-            } catch {
-                
-            }
-        } else {
-
-        }
-    }
-
-    displayedAttrs() {
-        let spn = document.createElement("span")
-        spn.innerText = this.id
-        return [spn, placeholderImg(100, 100)]
+    toJson() {
+        return JSON.stringify(this)
     }
 
     isNull() {
         return false;
+    }
+}
+
+class OwnedMonster extends Monster {
+    source;
+    obtained_at;
+
+    static fromJson(obj) {
+        let omons = new OwnedMonster()
+        omons.owned_id    = obj.owned_id
+        omons.monster_id  = obj.monster_id
+        omons.source      = obj.source
+        omons.obtained_at = obj.obtained_at
+        return omons
+    }
+
+    toJson() {
+        return JSON.stringify(this)
     }
 }
 
@@ -144,17 +146,17 @@ class NullMonster extends Monster {
 }
 
 class Team {
-    constructor() {
-        this.monsters = [new NullMonster(),new NullMonster(),new NullMonster()]
-        this.id       = null
-        this.name = ""
-    }
+    id
+    name
+    members
+    created_at
+    updated_at
 
     setMonster(i, monster) {
         if(i < 0 || i > 2) {
             return;
         }
-        this.monsters[i] = monster
+        this.members[i] = monster
         return this
     }
 
@@ -198,6 +200,7 @@ class Encounter {
 class Screen {
     constructor(selector) {
         this.element = document.querySelector(selector)
+        this.set("error_label", ".err-label")
         this.hide()
     }
 
@@ -222,38 +225,55 @@ class Screen {
 }
 
 class ScreenTransitions {
+    #navigation_locked = false;
+    #history = [];
+    #current_screen;
+
     constructor(starting_screen) {
-        this.current_screen = starting_screen;
-        this.history = [];
+        this.#current_screen = starting_screen;
     }
 
     async changeTo(screen) {
-        this.current_screen.hide()
-        this.history.push(this.current_screen)
-        await screen.show()
-        this.current_screen = screen;
+        if(this.#navigation_locked) {
+            return;
+        }
+        this.#navigation_locked = true;
+        try {
+            await screen.show()
+            this.#current_screen.hide()
+            this.#history.push(this.#current_screen)
+            this.#current_screen = screen
+        } catch(error) {
+
+        } finally {
+            this.#navigation_locked = false;
+        }
     }
 
     previous() {
-        if(this.history.length == 0) {
+        if(this.#history.length == 0 || this.#navigation_locked) {
             return;
         }
-        this.current_screen.hide()
-        this.current_screen = this.history.pop()
-        this.current_screen.resume()
+        this.#current_screen.hide()
+        this.#current_screen = this.#history.pop()
+        this.#current_screen.resume()
     }
 
     async previousReload() {
-        if(this.history.length == 0) {
+        if(this.#history.length == 0 || this.#navigation_locked) {
             return;
         }
-        this.current_screen.hide()
-        this.current_screen = this.history.pop()
-        await this.current_screen.show()
+        try {
+            await this.#history[this.#history.length-1].show()
+            this.#current_screen.hide()
+            this.#current_screen = this.#history.pop()
+        } catch(error) {
+
+        }
     }
 
     clearHistory() {
-        this.history = []
+        this.#history = []
     }
 }
 
@@ -337,7 +357,7 @@ function resolveEncounter() {
 
 // END TEST FUNCTIONS
 
-let api = requestProxy(_api)
+let proxy = requestProxy(api)
 
 let screens = {}
 screens.login                = new Screen("section#login")
@@ -355,6 +375,20 @@ await screens.login.show();
 let transitions = new ScreenTransitions(screens.login)
 document.querySelectorAll("button.back-btn").forEach((v)=>{v.addEventListener("click", ()=>{transitions.previous()})})
 
+function standardErrorHandling(screen, err) {
+    if(typeof(err) == RequestInFlightError) {
+        return;
+    }
+    if(typeof(err) == api.ApiError) {
+        if(err.status === api.HTTP_UNAUTHORIZED) {
+            screen.error_label.innerText = ""
+            transitions.changeTo(screens.login)
+            transitions.clearHistory()
+            return;
+        }
+    }
+    screen.error_label.innerText = err.message
+}
 
 /**************/
 /*LOGIN SCREEN*/
@@ -367,19 +401,25 @@ screens.login.set("register_btn", "button#register-btn")
 
 async function login_callback() {
     try {
-        await api.login(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
+        await proxy.login(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
         await transitions.changeTo(screens.main)
-    } catch {
-        // SET ERROR MESSAGE SOMEWHEEEEEEEEEERE
-    } 
+    } catch(err) {
+        if(typeof(err) == RequestInFlightError) {
+            return;
+        }
+        screens.login.error_label.innerText = err.message
+    }
 }
 
 async function register_callback() {
     try{
         //Ignore value for now
-        await api.register(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
+        await proxy.register(screens.login.usrname_ipt.value, screens.login.pwd_ipt.value)
     } catch {
-        // SET ERROR MESSAGE SOMEWHEEEEEEEEEERE
+        if(typeof(err) == RequestInFlightError) {
+            return;
+        }
+        screens.login.error_label.innerText = err.message
     }
 }
 
@@ -399,28 +439,42 @@ screens.main.set("bestiary", "button#bestiary-btn")
 async function coll_btn_callback() {
     try{
         await transitions.changeTo(screens.collection)
-    } catch {
-        //DO SOMETHING
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
     }
 }
 
 async function team_btn_callback() {
-    await transitions.changeTo(screens.teams)
+    try {
+        await transitions.changeTo(screens.teams)
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
+    }
 }
 
 async function enc_btn_callback() {
-    await transitions.changeTo(screens.encounters)
+    try {
+        await transitions.changeTo(screens.encounters)
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
+    }
 }
 
 async function hist_btn_callback() {
-    await transitions.changeTo(screens.history)
+    try {
+        await transitions.changeTo(screens.history)
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
+    }
 }
 
 async function logout_btn_callback() {
     try {
-        await api.logout()
-    } catch {
-
+        await proxy.logout()
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
+    } finally {
+        await transitions.changeTo(screens.login)
     }
 }
 
@@ -436,7 +490,7 @@ screens.main.logout_btn.addEventListener("click", logout_btn_callback)
 /*******************/
 screens.collection.set("table", "table#coll-tab")
 screens.collection.onShow = async function() {
-    let collection = await api.getCollection()
+    let collection = JSON.parse(await proxy.getCollection())
     this.element.removeChild(this.table)
     this.table = eCreate("table", [], "coll-tab")
     for(let monster of collection){
@@ -452,33 +506,59 @@ function addCollRow(table, monster) {
         td.appendChild(attr)
         tr.appendChild(td)
     }
-    tr.addEventListener("click", collRowClickFnGen(monster))
+    tr.addEventListener("click", collRowClickFnGen(monster.monster_id))
     table.appendChild(tr)
 }
 
-function collRowClickFnGen(monster) {
-    return ()=>{
-        screens.monster_details.set_monster(monster)
-        transitions.changeTo(screens.monster_details)
+function collRowClickFnGen(monster_id) {
+    return async()=>{
+        screens.monster_details.set_monster_id(monster_id)
+        try {
+            await transitions.changeTo(screens.monster_details)
+        } catch(err) {
+            standardErrorHandling(screens.collection, err)
+        }
     }
 }
 
 /*********************/
 /*MONSTER INFO SCREEN*/
 /*********************/
+MONSTER_OWNED_DETAILS   = 0;
+MONSTER_GENERIC_DETAILS = 1;
 screens.monster_details.set("img_container","div.img-container")
 screens.monster_details.set("name_container","div.name-container")
 screens.monster_details.set("stats_container","div.stats-container")
-screens.monster_details.set_monster = function(monster){
-    while(this.img_container.firstChild) {
-        this.img_container.removeChild(this.img_container.lastChild)
+screens.monster_details.set_monster_id = function(monster_id){
+    this.monster_id = monster_id
+}
+screens.monster_details.onShow = async function() {
+    let monster = JSON.parse(await proxy.getMonster(this.monster_id))
+
+    this.element.removeChild(this.img_container)
+    this.element.removeChild(this.name_container)
+    this.element.removeChild(this.stats_container)
+
+    this.img_container   = eCreate("div", ["img-container"])
+    this.name_container  = eCreate("div", ["name-container"])
+    this.stats_container = eCreate("div", ["stats-container"])
+
+    let img = imgTag(monster.image_url)
+    let tab = eCreate("table")
+    this.img_container.appendChild(img)
+    this.name_container.innerText = monster.name
+
+    for(let stat of Object.keys(monster.stats)) {
+        let tr         = eCreate("tr")
+        let [td1, td2] = eCreateM("td", 2)
+        td1.innerText  = stat
+        td2.innerText  = monster.stats[stat]
+        appendAllChildren(tr, [td1, td2])
+        tab.appendChild(tr)
     }
-    while(this.name_container.firstChild) {
-        this.name_container.removeChild(this.name_container.lastChild)
-    }
-    let a = monster.displayedAttrs()
-    this.img_container.appendChild(a[1])
-    this.name_container.appendChild(a[0])
+    this.stats_container.appendChild(tab)
+
+    appendAllChildren(this.element, [this.img_container, this.name_container, this.stats_container])
 }
 
 /**************/
