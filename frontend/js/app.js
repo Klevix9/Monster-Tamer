@@ -515,7 +515,7 @@ screens.main.logout_btn.addEventListener("click", logout_btn_callback)
 /*******************/
 screens.collection.set("table", "table#coll-tab")
 screens.collection.onShow = async function() {
-    let collection = JSON.parse(await proxy.getCollection())
+    let collection = await proxy.getCollection()
 
     this.table.remove()
 
@@ -559,7 +559,7 @@ screens.monster_details.set_monster_id = function(monster_id){
     this.monster_id = monster_id
 }
 screens.monster_details.onShow = async function() {
-    let monster = JSON.parse(await proxy.getMonster(this.monster_id))
+    let monster = await proxy.getMonster(this.monster_id)
 
     this.img_container.remove()
     this.name_container.remove()
@@ -748,47 +748,46 @@ screens.encounters.onShow = async function() {
     this.selector.remove()
 
     this.selector = eCreate("select")
-    for(let team of teams) {
+    for(const { team_id, name } of teams) {
         let opt = eCreate("option")
-        opt.innerText = team.name
-        opt.value     = team.id
+        opt.innerText = name
+        opt.value     = team_id
         this.selector.appendChild(opt)
     }
 
     this.table = eCreate("table", ["no-b"], "encounters-table")
-    for(let encounter of encounters) {
+    for(const {encounter_id, name, description, difficulty, wild_monster_id, reward_monster_id, max_team_size} of encounters) {
         let tr = eCreate("tr")
 
         let [
-            name,
-            description,
-            difficulty,
-            wild_monster_id, 
-            reward_monster_id,
-            max_team_size
+            name_e,
+            description_e,
+            difficulty_e,
+            wild_monster_id_e, 
+            reward_monster_id_e,
+            max_team_size_e
         ] = eCreateM("td", 6, ["no-b"])
 
-        name.innerText          = encounter.name
-        description.innerText   = encounter.description
-        difficulty.innerText    = encounter.difficulty.toString(10)
-        wild_monster_id.appendChild(placeholderImg(100,100))
-        reward_monster_id.appendChild(placeholderImg(100,100))
-        max_team_size.innerText = encounter.max_team_size.toString(10)
+        name_e.innerText          = name
+        description_e.innerText   = description
+        difficulty_e.innerText    = difficulty.toString(10)
+        wild_monster_id_e.appendChild(await monsterDisplay(wild_monster_id))
+        reward_monster_id_e.appendChild(await monsterDisplay(reward_monster_id))
+        max_team_size_e.innerText = max_team_size.toString(10)
 
         appendAllChildren(tr, [
-            name,
-            description,
-            difficulty,
-            wild_monster_id, 
-            reward_monster_id,
-            max_team_size
+            name_e,
+            description_e,
+            difficulty_e,
+            wild_monster_id_e, 
+            reward_monster_id_e,
+            max_team_size_e
         ])
 
         tr.addEventListener("click", async ()=>{
                 let team_id = this.selector.selectedOptions[0].value
-                let enc_id  = encounter.encounter_id
                 screens.encounter_resolution.set_team_id(team_id)
-                screens.encounter_resolution.set_encounter_id(enc_id)
+                screens.encounter_resolution.set_encounter_id(encounter_id)
                 await transitions.changeTo(screens.encounter_resolution)
             })
 
