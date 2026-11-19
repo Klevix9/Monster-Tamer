@@ -36,7 +36,7 @@ function requestProxy(api) {
 
 function eCreate(element, classlist = [], id = "") {
     let el = document.createElement(element)
-    for(let cls of classlist) {
+    for(const cls of classlist) {
         el.classList.add(cls)
     }
     el.id =  id
@@ -58,7 +58,7 @@ function imgTag(src) {
 }
 
 async function monsterDisplay(monster_id, bordered = false) {
-    let monster = await proxy.getMonster(monster_id)
+    const monster = await proxy.getMonster(monster_id)
     let div = document.createElement("div", bordered ? ["bordered"] : []);
     div.style.display = "flex";
     div.style.flexDirection = "column";
@@ -83,142 +83,8 @@ function monsterDisplayNoReq(monster) {
 }
 
 function appendAllChildren(el, children) {
-    for(let child of children) {
+    for(const child of children) {
         el.appendChild(child)
-    }
-}
-
-class HistorySummary {
-    constructor(run_id = "", encounter_id = "", encounter_name = "", status = "", ended_at = "", reward_monster_id = "") {
-        this.run_id            = run_id
-        this.encounter_id      = encounter_id
-        this.encounter_name    = encounter_name
-        this.status            = status
-        this.ended_at          = ended_at
-        this.reward_monster_id = reward_monster_id
-    }
-}
-
-class MonsterSpecies {
-    constructor(
-        id,
-        name,
-        image_url,
-        element,
-        rarity
-    ) {
-        this.id                = id;
-        this.name              = name
-        this.image_url         = image_url
-        this.element           = element
-        this.rarity            = rarity
-        id_to_species[this.id] = this
-    }
-}
-
-class Monster {
-    owned_id;
-    monster_id;
-
-    static fromJson(obj) {
-        let mons = new Monster()
-        mons.owned_id   = obj.owned_id
-        mons.monster_id = obj.monster_id 
-        return mons
-    }
-
-    toJson() {
-        return JSON.stringify(this)
-    }
-
-    isNull() {
-        return false;
-    }
-}
-
-class OwnedMonster extends Monster {
-    source;
-    obtained_at;
-
-    static fromJson(obj) {
-        let omons = new OwnedMonster()
-        omons.owned_id    = obj.owned_id
-        omons.monster_id  = obj.monster_id
-        omons.source      = obj.source
-        omons.obtained_at = obj.obtained_at
-        return omons
-    }
-
-    toJson() {
-        return JSON.stringify(this)
-    }
-}
-
-class NullMonster extends Monster {
-    constructor() {
-        super("", null)
-    }
-
-    displayedAttrs() {
-        let spn = document.createElement("span");
-        spn.innerText("None")
-        return [document.createElement("span"), spn]
-    }
-
-    isNull() {
-        return true;
-    }
-}
-
-class Team {
-    id
-    name
-    members
-    created_at
-    updated_at
-
-    setMonster(i, monster) {
-        if(i < 0 || i > 2) {
-            return;
-        }
-        this.members[i] = monster
-        return this
-    }
-
-    setId(id) {
-        this.id = id
-        return this
-    }
-
-    setName(name) {
-        this.name = name
-        return this
-    }
-
-    isNew() {
-        return this.id == null
-    }
-}
-
-class Encounter {
-    constructor(
-        encounter_id,
-        name,
-        description,
-        difficulty,
-        wild_monster_id, 
-        reward_monster_id,
-        max_team_size,
-        available
-    ) {
-        this.encounter_id      = encounter_id
-        this.name              = name
-        this.description       = description
-        this.difficulty        = difficulty
-        this.wild_monster_id   = wild_monster_id
-        this.reward_monster_id = reward_monster_id
-        this.max_team_size     = max_team_size
-        this.available         = available
     }
 }
 
@@ -309,78 +175,6 @@ function placeholderImg(w, h) {
     img.src = "./testing/placeholder.png"
     return img
 }
-
-// TEST FUNCTIONS
-
-let TEST_COLLECTION = []
-for(let i = 0; i < 100; i++) {
-    TEST_COLLECTION.push(new Monster((99999+i).toString(16)))
-}
-
-function getCollection() {
-    return TEST_COLLECTION
-}
-
-let TEST_TEAMS = []
-for(let i = 0; i < 100; i++) {
-    let team = new Team();
-    team.setName(i.toString())
-    team.setMonster(0, new Monster((99999+(i*3)).toString(16)))
-    team.setMonster(1, new Monster((99999+(i*3+1)).toString(16)))
-    team.setMonster(2, new Monster((99999+(i*3+2)).toString(16)))
-    team.id = i
-    TEST_TEAMS.push(team)
-}
-
-function getTeams() {
-    return TEST_TEAMS
-}
-
-let TEST_HISTORY_SUMMARIES = []
-for(let i = 0; i < 100; i++) {
-    TEST_HISTORY_SUMMARIES.push(new HistorySummary(
-        (99999+(i*6)).toString(16),
-        (99999+(i*6+1)).toString(16),
-        (99999+(i*6+2)).toString(16),
-        (99999+(i*6+3)).toString(16),
-        (99999+(i*6+4)).toString(16),
-        (99999+(i*6+5)).toString(16)
-    ))
-}
-
-function getHistorySummaries() {
-    return TEST_HISTORY_SUMMARIES
-}
-
-let TEST_ENCOUNTERS = []
-for(let i = 0; i < 100; i++) {
-    TEST_ENCOUNTERS.push(
-        new Encounter(
-            (99999+(i*5)+1).toString(16),
-            (99999+(i*5)+2).toString(16),
-            (99999+(i*5)+3).toString(16),
-            i%3,
-            (99999+(i*5)+4).toString(16),
-            (99999+(i*5)+5).toString(16),
-            i%10,
-            true
-        )
-    )
-}
-
-function getEncounters() {
-    return TEST_ENCOUNTERS
-}
-
-function resolveEncounter() {
-    let v = Math.random()
-    if(v > 0.5) {
-        return true
-    }
-    return false
-}
-
-// END TEST FUNCTIONS
 
 let proxy = requestProxy(api)
 
@@ -515,12 +309,12 @@ screens.main.logout_btn.addEventListener("click", logout_btn_callback)
 /*******************/
 screens.collection.set("table", "table#coll-tab")
 screens.collection.onShow = async function() {
-    let collection = await proxy.getCollection()
+    const collection = await proxy.getCollection()
 
     this.table.remove()
 
     this.table = eCreate("table", [], "coll-tab")
-    for(let monster of collection){
+    for(const monster of collection){
         addCollRow(this.table, monster)
     }
     this.element.appendChild(this.table)
@@ -528,9 +322,8 @@ screens.collection.onShow = async function() {
 
 async function addCollRow(table, monster) {
     let tr = document.createElement("tr")
-    let td = document.createElement("td")
-    let mdisp = await monsterDisplay(monster.monster_id)
-    td.appendChild(mdisp)
+    let td = document.createElement("td") 
+    td.appendChild(await monsterDisplay(monster.monster_id))
     tr.appendChild(td)
     tr.addEventListener("click", collRowClickFnGen(monster.monster_id))
     table.appendChild(tr)
@@ -559,7 +352,7 @@ screens.monster_details.set_monster_id = function(monster_id){
     this.monster_id = monster_id
 }
 screens.monster_details.onShow = async function() {
-    let monster = await proxy.getMonster(this.monster_id)
+    const monster = await proxy.getMonster(this.monster_id)
 
     this.img_container.remove()
     this.name_container.remove()
@@ -574,7 +367,7 @@ screens.monster_details.onShow = async function() {
     this.img_container.appendChild(img)
     this.name_container.innerText = monster.name
 
-    for(let stat of Object.keys(monster.stats)) {
+    for(const stat of Object.keys(monster.stats)) {
         let tr         = eCreate("tr")
         let [td1, td2] = eCreateM("td", 2)
         td1.innerText  = stat
@@ -593,13 +386,12 @@ screens.monster_details.onShow = async function() {
 screens.teams.set("new_team_btn", "button#new-team-btn")
 screens.teams.set("table", "table#team-table")
 screens.teams.onShow = async function() {
-    let teams;
-    teams = await proxy.getTeams()
+    const teams = await proxy.getTeams()
 
     this.table.remove()
 
     this.table = eCreate("table", ["no-b"], "team-table")
-    for(let team of teams) {
+    for(const team of teams) {
         console.log(team)
         add_team_to_table(this.table, team)
     }
@@ -639,13 +431,13 @@ screens.team_editor.set_team = function(team){
     this.team_id = team.team_id;
     this.team_name = team.name;
     this.selected = [];
-    for(let m of team.members) {
-        this.selected.push(m.owned_id)
+    for(const { owned_id } of team.members) {
+        this.selected.push(owned_id)
     }
 }
 
 screens.team_editor.onShow = async function() {
-    let coll = await proxy.getCollection()
+    const coll = await proxy.getCollection()
     this.team_name_ipt.value = this.team_name
 
     this.table.remove()
@@ -660,7 +452,7 @@ screens.team_editor.onShow = async function() {
             tr = eCreate("tr", ["no-b"])
         }
         let td = eCreate("td", ["no-b"])
-        let {monster_id, owned_id} = coll[i]
+        const { monster_id, owned_id } = coll[i]
         let div = await monsterDisplay(monster_id, true)
         td.appendChild(div)
         if(this.members.indexOf(owned_id) != -1) {
@@ -688,8 +480,8 @@ screens.team_editor.set("team_name_ipt", "input#team-name-ipt")
 screens.team_editor.set("table", "table#team-selector-table")
 
 async function save_btn_callback() {
-    let name = this.team_name_ipt.value
-    let obj = {name, members: this.selected}
+    const name = this.team_name_ipt.value
+    const obj = {name, members: this.selected}
     try {
         if(this.team_id == null) {
             await proxy.createTeam(obj)
@@ -708,7 +500,7 @@ screens.team_editor.save_btn.addEventListener("click", save_btn_callback.bind(sc
 /*********/
 screens.history.set("table", "table#history-table")
 screens.history.onShow = async function(){
-    let hist = await proxy.getHistory()
+    const hist = await proxy.getHistory()
 
     this.table.remove()
 
@@ -741,8 +533,8 @@ screens.history.onShow = async function(){
 screens.encounters.set("table", "table#encounters-table")
 screens.encounters.set("selector", "select#encounter-team-selector")
 screens.encounters.onShow = async function() {
-    let teams = await proxy.getTeams()
-    let encounters = await proxy.getEncounters()
+    const teams      = await proxy.getTeams()
+    const encounters = await proxy.getEncounters()
 
     this.table.remove()
     this.selector.remove()
@@ -756,7 +548,7 @@ screens.encounters.onShow = async function() {
     }
 
     this.table = eCreate("table", ["no-b"], "encounters-table")
-    for(const {encounter_id, name, description, difficulty, wild_monster_id, reward_monster_id, max_team_size} of encounters) {
+    for(const { encounter_id, name, description, difficulty, wild_monster_id, reward_monster_id, max_team_size } of encounters) {
         let tr = eCreate("tr")
 
         let [
@@ -785,7 +577,7 @@ screens.encounters.onShow = async function() {
         ])
 
         tr.addEventListener("click", async ()=>{
-                let team_id = this.selector.selectedOptions[0].value
+                const team_id = this.selector.selectedOptions[0].value
                 screens.encounter_resolution.set_team_id(team_id)
                 screens.encounter_resolution.set_encounter_id(encounter_id)
                 await transitions.changeTo(screens.encounter_resolution)
@@ -807,12 +599,18 @@ screens.encounter_resolution.set_encounter_id = function(enc_id) {this.encounter
 screens.encounter_resolution.onShow = async function() {
     this.backr_btn.classList.add(["hidden"])
     this.backr_btn.disabled = true
+
+    const { run_id }    = await proxy.startEncounter(this.encounter_id, {team_id: this.team_id})
     this.text.innerText = "Resolving"
-    let won = resolveEncounter()
-    if(won) {
+    const { status }        = await proxy.resolveRun(run_id)
+    if(status == "success") {
         this.text.innerText = "VICTORY!"
-    } else {
+    } else if(status == "failure") {
         this.text.innerText = "DEFEAT!"
+    } else if(status == "expired") {
+        this.text.innerText = "EXPIRED"
+    } else if(status == "abandoned") {
+        this.text.innerText = "ABANDONED"
     }
     this.backr_btn.classList.remove(["hidden"])
     this.backr_btn.disabled = false

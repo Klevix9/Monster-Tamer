@@ -134,8 +134,8 @@ export function getEncounter(id) {
   return request("GET", `/encounter/${id}`)
 }
 
-export function startEncounter(id) {
-  return request("POST", `/encounter/${id}/runs`)
+export function startEncounter(id, { team_id }) {
+  return request("POST", `/encounter/${id}/runs`, {json: { team_id }})
 }
 
 export function getRun(id) {
