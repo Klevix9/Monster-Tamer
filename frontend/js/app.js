@@ -1,4 +1,4 @@
-import * as api from "./proxy.js"
+import * as api from "./api.js"
 
 class RequestInFlightError extends Error {
     constructor() {
@@ -70,8 +70,8 @@ async function monsterDisplay(monster_id, bordered = false) {
     return div
 }
 
-function monsterDisplayNoReq(monster) {
-    let div = document.createElement("div", ["bordered"]);
+function monsterDisplayNoReq(monster, bordered = false) {
+    let div = document.createElement("div", bordered ? ["bordered"] : []);
     div.style.display = "flex";
     div.style.flexDirection = "column";
     div.style.alignItems = "center";
@@ -88,10 +88,60 @@ function appendAllChildren(el, children) {
     }
 }
 
+class FixedWTableAdder {
+    #table;
+    #colSize;
+    #colCount;
+    #tr;
+    #td;
+    #bordered;
+
+    constructor(table, colSize, bordered = false) {
+        this.#table    = table
+        this.#colSize  = colSize
+        this.#colCount = 0
+        this.#tr       = null
+        this.#bordered = bordered
+    }
+
+    add(el) {
+        if(this.#tr == null) {
+            this.#tr = eCreate("tr", this.#bordered ? [] : ["no-b"])
+        }
+        this.#td = eCreate("td", this.#bordered ? [] : ["no-b"])
+        this.#td.appendChild(el)
+        this.#colCount += 1;
+        if(this.#colCount == this.#colSize) {
+            this.#table.appendChild(this.#tr)
+            this.#tr       = null
+            this.#colCount = 0
+        }
+    }
+
+    lastTd() {
+        return this.#td
+    }
+
+    done() {
+        if(this.#tr != null) {
+            this.#table.appendChild(this.#tr)
+        }
+    }
+}
+
 class Screen {
     constructor(selector) {
-        this.element = document.querySelector(selector)
-        this.set("error_label", ".err-label")
+        this.element     = document.querySelector(selector)
+
+        // Every screen must have an error label
+        let err_lab = this.element.querySelector("div.err-label")
+        if(err_lab == null) {
+            this.error_label = eCreate("div", ["err-label"])
+            this.element.prepend(this.error_label)
+        } else {
+            this.error_label = err_lab
+        }
+
         this.hide()
     }
 
@@ -115,6 +165,7 @@ class Screen {
     }
 }
 
+// Class doesn't handle errors. They are to be handled by whoever requested navigation.
 class ScreenTransitions {
     #navigation_locked = false;
     #history = [];
@@ -134,8 +185,6 @@ class ScreenTransitions {
             this.#current_screen.hide()
             this.#history.push(this.#current_screen)
             this.#current_screen = screen
-        } catch(error) {
-
         } finally {
             this.#navigation_locked = false;
         }
@@ -154,12 +203,13 @@ class ScreenTransitions {
         if(this.#history.length == 0 || this.#navigation_locked) {
             return;
         }
+        this.#navigation_locked = true
         try {
             await this.#history[this.#history.length-1].show()
             this.#current_screen.hide()
             this.#current_screen = this.#history.pop()
-        } catch(error) {
-
+        } finally {
+            this.#navigation_locked = false
         }
     }
 
@@ -168,26 +218,21 @@ class ScreenTransitions {
     }
 }
 
-function placeholderImg(w, h) {
-    let img = document.createElement("img")
-    img.width = w
-    img.height = h
-    img.src = "./testing/placeholder.png"
-    return img
-}
-
 let proxy = requestProxy(api)
 
-let screens = {}
-screens.login                = new Screen("section#login")
-screens.main                 = new Screen("section#main")
-screens.collection           = new Screen("section#collection")
-screens.teams                = new Screen("section#teams")
-screens.team_editor          = new Screen("section#team-editor")
-screens.encounters           = new Screen("section#encounters")
-screens.history              = new Screen("section#history")
-screens.monster_details      = new Screen("section#monster-details")
-screens.encounter_resolution = new Screen("section#encounter-resolution")
+let screens = 
+{
+    login                : new Screen("section#login"),
+    main                 : new Screen("section#main"),
+    collection           : new Screen("section#collection"),
+    teams                : new Screen("section#teams"),
+    team_editor          : new Screen("section#team-editor"),
+    encounters           : new Screen("section#encounters"),
+    history              : new Screen("section#history"),
+    monster_details      : new Screen("section#monster-details"),
+    encounter_resolution : new Screen("section#encounter-resolution"),
+    bestiary             : new Screen("section#bestiary")
+}
 
 await screens.login.show();
   
@@ -297,11 +342,20 @@ async function logout_btn_callback() {
     }
 }
 
+async function bestiary_btn_callback() {
+    try {
+        await transitions.changeTo(screens.bestiary)
+    } catch(err) {
+        standardErrorHandling(screens.main, err)
+    }
+}
+
 screens.main.coll_btn.addEventListener("click", coll_btn_callback)
 screens.main.team_btn.addEventListener("click", team_btn_callback)
 screens.main.enc_btn.addEventListener("click", enc_btn_callback)
 screens.main.hist_btn.addEventListener("click", hist_btn_callback)
 screens.main.logout_btn.addEventListener("click", logout_btn_callback)
+screens.main.bestiary_btn.addEventListener("click", bestiary_btn_callback)
 
 
 /*******************/
@@ -325,17 +379,17 @@ async function addCollRow(table, monster) {
     let td = document.createElement("td") 
     td.appendChild(await monsterDisplay(monster.monster_id))
     tr.appendChild(td)
-    tr.addEventListener("click", collRowClickFnGen(monster.monster_id))
+    tr.addEventListener("click", collRowClickFnGen(monster.monster_id, screens.collection))
     table.appendChild(tr)
 }
 
-function collRowClickFnGen(monster_id) {
+function collRowClickFnGen(monster_id, err_screen) {
     return async()=>{
         screens.monster_details.set_monster_id(monster_id)
         try {
             await transitions.changeTo(screens.monster_details)
         } catch(err) {
-            standardErrorHandling(screens.collection, err)
+            standardErrorHandling(err_screen, err)
         }
     }
 }
@@ -343,14 +397,10 @@ function collRowClickFnGen(monster_id) {
 /*********************/
 /*MONSTER INFO SCREEN*/
 /*********************/
-MONSTER_OWNED_DETAILS   = 0;
-MONSTER_GENERIC_DETAILS = 1;
 screens.monster_details.set("img_container","div.img-container")
 screens.monster_details.set("name_container","div.name-container")
 screens.monster_details.set("stats_container","div.stats-container")
-screens.monster_details.set_monster_id = function(monster_id){
-    this.monster_id = monster_id
-}
+screens.monster_details.set_monster_id = function(id){this.monster_id = id}
 screens.monster_details.onShow = async function() {
     const monster = await proxy.getMonster(this.monster_id)
 
@@ -442,23 +492,19 @@ screens.team_editor.onShow = async function() {
 
     this.table.remove()
 
-    this.table = eCreate("table", ["no-b"], "team-selector-table")
-    let tr = null
+    this.table       = eCreate("table", ["no-b"], "team-selector-table")
+    let tableAdder = new FixedWTableAdder(this.table, 7)
     for(let i = 0; i < coll.length; i++) {
-        if(i%7 == 0) {
-            if(tr != null) {
-                this.table.appendChild(tr)
-            }
-            tr = eCreate("tr", ["no-b"])
-        }
-        let td = eCreate("td", ["no-b"])
         const { monster_id, owned_id } = coll[i]
+
         let div = await monsterDisplay(monster_id, true)
-        td.appendChild(div)
         if(this.members.indexOf(owned_id) != -1) {
             div.classList.add(["selected"])
         }
-        td.addEventListener("click", ()=>{
+
+        tableAdder.add(div)
+
+        tableAdder.lastTd().addEventListener("click", ()=>{
             let idx = this.selected.indexOf(owned_id)
             if(idx != -1) {
                 this.selected = this.selected.filter((_,i)=>{return i!=idx})
@@ -468,9 +514,8 @@ screens.team_editor.onShow = async function() {
                 this.selected.push(owned_id)
             }
         })
-        tr.appendChild(td)
     }
-    this.table.appendChild(tr)
+    tableAdder.done()
     this.element.appendChild(this.table)
 }
 
@@ -495,6 +540,7 @@ async function save_btn_callback() {
 }
 
 screens.team_editor.save_btn.addEventListener("click", save_btn_callback.bind(screens.team_editor))
+
 /*********/
 /*HISTORY*/
 /*********/
@@ -601,7 +647,7 @@ screens.encounter_resolution.onShow = async function() {
     this.backr_btn.disabled = true
 
     const { run_id }    = await proxy.startEncounter(this.encounter_id, {team_id: this.team_id})
-    this.text.innerText = "Resolving"
+    this.text.innerText = "Resolving" // this is actually never seen, but whatever
     const { status }        = await proxy.resolveRun(run_id)
     if(status == "success") {
         this.text.innerText = "VICTORY!"
@@ -616,4 +662,24 @@ screens.encounter_resolution.onShow = async function() {
     this.backr_btn.disabled = false
 }
 
-screens.encounter_resolution.backr_btn.addEventListener("click", ()=>{transitions.previousReload()})
+screens.encounter_resolution.backr_btn.addEventListener("click", ()=>{try{transitions.previousReload()} catch(err) {standardErrorHandling(screens.encounter_resolution, err)}})
+
+/**********/
+/*BESTIARY*/
+/**********/
+screens.bestiary.set("table","table#bestiary-table")
+screens.bestiary.onShow = async function() {
+    const monsters = await proxy.getMonsters()
+
+    this.table.remove()
+    this.table = eCreate("table", ["no-b"], "bestiary-table")
+
+    let tableAdder = new FixedWTableAdder(this.table, 7)
+    for(const monster of monsters) {
+        tableAdder.add(monsterDisplayNoReq(monster))
+        tableAdder.lastTd().addEventListener("click", collRowClickFnGen(monster.id, this))
+    }
+    tableAdder.done()
+
+    this.element.appendChild(this.table)
+}
