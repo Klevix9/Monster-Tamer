@@ -80,6 +80,8 @@ Next thing we are doing is account (register + login) and then ownership, so tha
 
 ## 5. How to run
 
+### Backend
+
 You need Docker with compose v2, plus bash and openssl for the cert script (on windows use git bash or WSL).
 
 ```bash
@@ -91,7 +93,18 @@ docker compose up --build
 
 The cert script only needs to run the first time (it makes `certs/out/`, which is not in git). Gateway is then on https://localhost:8443. Stop with ctrl+c or `docker compose down`.
 
-Frontend: nothing to run yet.
+### Frontend
+
+Docker with compose v2 required.
+
+From the project's root folder:
+
+```bash
+cd frontend
+docker compose up --build
+```
+
+Then visit http://localhost:8080/index.html in your favourite browser.
 
 ## 6. How to test
 
