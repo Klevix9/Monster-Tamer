@@ -368,22 +368,18 @@ screens.collection.onShow = async function() {
     this.table.remove()
 
     this.table = eCreate("table", [], "coll-tab")
-    for(const monster of collection){
-        addCollRow(this.table, monster)
+
+    let tableAdder = new FixedWTableAdder(this.table, 7)
+    for(const { monster_id } of collection){
+        tableAdder.add(await monsterDisplay(monster_id))
+        tableAdder.lastTd().addEventListener("click", toMonsterDetailsCallbackGen(monster_id, this))
     }
+    tableAdder.done()
+
     this.element.appendChild(this.table)
 }
 
-async function addCollRow(table, monster) {
-    let tr = document.createElement("tr")
-    let td = document.createElement("td") 
-    td.appendChild(await monsterDisplay(monster.monster_id))
-    tr.appendChild(td)
-    tr.addEventListener("click", collRowClickFnGen(monster.monster_id, screens.collection))
-    table.appendChild(tr)
-}
-
-function collRowClickFnGen(monster_id, err_screen) {
+function toMonsterDetailsCallbackGen(monster_id, err_screen) {
     return async()=>{
         screens.monster_details.set_monster_id(monster_id)
         try {
@@ -677,7 +673,7 @@ screens.bestiary.onShow = async function() {
     let tableAdder = new FixedWTableAdder(this.table, 7)
     for(const monster of monsters) {
         tableAdder.add(monsterDisplayNoReq(monster))
-        tableAdder.lastTd().addEventListener("click", collRowClickFnGen(monster.id, this))
+        tableAdder.lastTd().addEventListener("click", toMonsterDetailsCallbackGen(monster.id, this))
     }
     tableAdder.done()
 
