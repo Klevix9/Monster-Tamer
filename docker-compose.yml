@@ -54,6 +54,8 @@ services:
 
   account:
     build: ./services/account
+    environment:
+      DB_PATH: /data/account.db
     expose:
       - "5000"
     volumes:
@@ -61,6 +63,7 @@ services:
       - ./certs/out/ca.crt:/certs/ca.crt:ro
       - ./certs/out/account.crt:/certs/service.crt:ro
       - ./certs/out/account.key:/certs/service.key:ro
+      - account-data:/data
     healthcheck:
       # Calls its own /health over HTTPS. Change the port when you copy this.
       test: ["CMD", "python", "-c", "import ssl,urllib.request; urllib.request.urlopen('https://localhost:5000/health', context=ssl.create_default_context(cafile='/certs/ca.crt'), timeout=3)"]
@@ -131,6 +134,9 @@ services:
 
   # TODO (task 13): one database per service, each with a named volume so data
   # survives "docker compose down". Only its own service may connect to it.
+
+volumes:
+  account-data: {}
 
 networks:
   backend: {}

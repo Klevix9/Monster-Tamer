@@ -54,7 +54,7 @@ paths:
                 display_name: ash
                 avatar: default
         '400':
-          description: Missing username, or password breaks the rules
+          description: Missing or invalid username, or password breaks the rules
           content:
             application/json:
               schema:
@@ -288,6 +288,7 @@ components:
           minLength: 3
           maxLength: 20
           pattern: '^[A-Za-z0-9_]+$'
+          description: Case-insensitive. Stored and returned in lowercase.
         password:
           type: string
           format: password

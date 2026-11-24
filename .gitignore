@@ -4,6 +4,9 @@ certs/out/
 # Local secrets
 .env
 
+# Local databases
+*.db
+
 # Python
 __pycache__/
 *.pyc

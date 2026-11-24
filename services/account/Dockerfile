@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY app ./app
 
+# The database lives here; docker compose mounts a volume on it.
+RUN mkdir /data && chown app /data
+
 # Everything after this line runs as the non-root user.
 USER app
 
@@ -23,7 +26,7 @@ USER app
 EXPOSE 5000
 
 # HTTPS directly in the service, using the certificate mounted by docker compose.
-CMD ["uvicorn", "app.main:app", \
+CMD ["uvicorn", "--factory", "app.main:create_app", \
      "--host", "0.0.0.0", "--port", "5000", \
      "--ssl-keyfile", "/certs/service.key", \
      "--ssl-certfile", "/certs/service.crt"]

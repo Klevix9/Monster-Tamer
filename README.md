@@ -60,19 +60,20 @@ Works:
 - gateway routing to all 5 services, `/internal/*` blocked
 - containers run as non root user
 - `GET /monsters` and `GET /monsters/{id}` return real data (2 monsters, hardcoded for now)
+- `POST /auth/register` creates a player, saved in the account database
 - CI on github actions: unit tests, bandit, pip-audit, trivy on the images, and a smoke test that starts everything and calls the gateway
 
 Designed but not implemented (the endpoints just answer 501 for now):
 
-- account, ownership, encounter, historian
+- account (except register), ownership, encounter, historian
 - game rules: [docs/game-rules.md](docs/game-rules.md)
 - how an encounter is resolved: [docs/EncounterRules.md](docs/EncounterRules.md)
 - seed data for the monsters is created in `seed/` (not loaded by the service yet)
   
 Missing:
 
-- databases (nothing is saved)
-- register / login / JWT, so no auth checks anywhere yet
+- databases for the services other than account
+- login / JWT, so no auth checks anywhere yet
 - the frontend
 - Bruno tests and Locust
 
@@ -113,8 +114,11 @@ curl --cacert certs/out/ca.crt https://localhost:8443/monsters/nope
 # internal paths are blocked -> 404
 curl --cacert certs/out/ca.crt https://localhost:8443/internal/monsters
 
+# register a player -> 201 (409 if the username is taken)
+curl --cacert certs/out/ca.crt -X POST https://localhost:8443/auth/register \
+  -H 'Content-Type: application/json' -d '{"username":"ash","password":"Pikachu@12"}'
+
 # the other services answer but are not implemented -> 501
-curl --cacert certs/out/ca.crt -X POST https://localhost:8443/auth/register
 curl --cacert certs/out/ca.crt https://localhost:8443/collection
 curl --cacert certs/out/ca.crt https://localhost:8443/encounters
 curl --cacert certs/out/ca.crt https://localhost:8443/history
