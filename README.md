@@ -104,7 +104,7 @@ cd frontend
 docker compose up --build
 ```
 
-Then visit http://localhost:8080/index.html in your favourite browser.
+Then visit http://localhost:5173/index.html in your favourite browser.
 
 ## 6. How to test
 
