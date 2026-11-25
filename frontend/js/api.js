@@ -131,11 +131,11 @@ export function getEncounters() {
 }
 
 export function getEncounter(id) {
-  return request("GET", `/encounter/${id}`)
+  return request("GET", `/encounters/${id}`)
 }
 
 export function startEncounter(id, { team_id }) {
-  return request("POST", `/encounter/${id}/runs`, {json: { team_id }})
+  return request("POST", `/encounters/${id}/runs`, {json: { team_id }})
 }
 
 export function getRun(id) {

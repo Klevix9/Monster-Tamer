@@ -2,7 +2,7 @@ import * as api from "./api.js"
 
 class RequestInFlightError extends Error {
     constructor() {
-        this.name = "RequestInFlightError"
+        super("RequestInFlightError")
     }
 }
 
@@ -25,7 +25,7 @@ function requestProxy(api) {
                 busy = true;
 
                 try {
-                    await original.apply(target, args)
+                    return await original.apply(target, args)
                 } finally {
                     busy = false;
                 }
@@ -110,6 +110,7 @@ class FixedWTableAdder {
         }
         this.#td = eCreate("td", this.#bordered ? [] : ["no-b"])
         this.#td.appendChild(el)
+        this.#tr.appendChild(this.#td)
         this.#colCount += 1;
         if(this.#colCount == this.#colSize) {
             this.#table.appendChild(this.#tr)
@@ -298,7 +299,7 @@ screens.main.set("team_btn", "button#team-btn")
 screens.main.set("enc_btn", "button#enc-btn")
 screens.main.set("hist_btn", "button#hist-btn")
 screens.main.set("logout_btn", "button#logout-btn")
-screens.main.set("bestiary", "button#bestiary-btn")
+screens.main.set("bestiary_btn", "button#bestiary-btn")
 
 async function coll_btn_callback() {
     try{
@@ -438,7 +439,6 @@ screens.teams.onShow = async function() {
 
     this.table = eCreate("table", ["no-b"], "team-table")
     for(const team of teams) {
-        console.log(team)
         add_team_to_table(this.table, team)
     }
     this.element.appendChild(this.table)
@@ -473,6 +473,8 @@ screens.teams.new_team_btn.addEventListener("click", ()=>{team_editor_callback({
 /*************/
 /*TEAM EDITOR*/
 /*************/
+MAX_TEAM_SIZE = 4
+
 screens.team_editor.set_team = function(team){
     this.team_id = team.team_id;
     this.team_name = team.name;
@@ -494,7 +496,7 @@ screens.team_editor.onShow = async function() {
         const { monster_id, owned_id } = coll[i]
 
         let div = await monsterDisplay(monster_id, true)
-        if(this.members.indexOf(owned_id) != -1) {
+        if(this.selected.indexOf(owned_id) != -1) {
             div.classList.add(["selected"])
         }
 
@@ -505,7 +507,7 @@ screens.team_editor.onShow = async function() {
             if(idx != -1) {
                 this.selected = this.selected.filter((_,i)=>{return i!=idx})
                 div.classList.toggle("selected")
-            } else if(this.selected.length < 3){
+            } else if(this.selected.length < MAX_TEAM_SIZE){
                 div.classList.toggle("selected")
                 this.selected.push(owned_id)
             }
