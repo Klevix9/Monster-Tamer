@@ -1,14 +1,18 @@
 openapi: 3.0.3
 info:
   title: Monster Tamers - Monsters service
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The catalogue of every monster in the game: names, images and stats.
-    Covers US-10, US-11. Read-only for players; the data comes from seed/monsters.json.
+    Covers US-10, US-11. Read-only for players.
 
-    Every monster has an image and the stats used in encounters (hp, attack,
-    defense, speed, element). Stats are integers from 1 to 100 (placeholder,
-    see docs/game-rules.md).
+    The data lives in the service's own Postgres database (monsters-db). At every
+    start the service validates seed/monsters.json and seed/images/ and upserts
+    them into the database, so editing the seed and restarting is enough.
+
+    Every monster has a PNG image and the stats used in encounters
+    (docs/EncounterRules.md): hp, attack, defence and one or two elements.
+    speed is stored but not used by the current encounter rules.
 
     Called by: Ownership (check monsters exist, get the starter set) and
     Encounter (get stats for the team and the wild monster).
@@ -54,16 +58,16 @@ paths:
                 items:
                   $ref: '#/components/schemas/MonsterSummary'
               example:
-                - id: flamepup
-                  name: Flamepup
-                  image_url: /monsters/flamepup/image
-                  element: fire
+                - id: mon-001
+                  name: Flameling
+                  image_url: /monsters/mon-001/image
+                  elements: [fire]
                   rarity: common
-                - id: tidefin
-                  name: Tidefin
-                  image_url: /monsters/tidefin/image
-                  element: water
-                  rarity: rare
+                - id: mon-012
+                  name: Infernox
+                  image_url: /monsters/mon-012/image
+                  elements: [fire, dark]
+                  rarity: epic
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -78,8 +82,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/MonsterId'
       responses:
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '200':
           description: The monster with all its stats
           content:
@@ -87,18 +89,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Monster'
               example:
-                id: flamepup
-                name: Flamepup
-                description: A small fire dog. Fast, but fragile.
-                image_url: /monsters/flamepup/image
-                element: fire
+                id: mon-001
+                name: Flameling
+                image_url: /monsters/mon-001/image
+                elements: [fire]
                 rarity: common
                 starter: true
                 stats:
-                  hp: 40
-                  attack: 55
-                  defense: 30
-                  speed: 70
+                  hp: 60
+                  attack: 70
+                  defence: 40
+                  speed: 75
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -147,10 +150,12 @@ paths:
             items:
               type: string
               pattern: '^[a-z0-9-]{1,40}$'
-          example: [flamepup, tidefin]
+          example: [mon-001, mon-002]
       responses:
         '200':
-          description: The requested monsters, in the order asked
+          description: |
+            The requested monsters, in the order asked. An id asked twice is
+            returned twice (a team may hold two monsters of the same species).
           content:
             application/json:
               schema:
@@ -177,7 +182,7 @@ paths:
         - serviceToken: []
       responses:
         '200':
-          description: The starter set defined by the game rules
+          description: The monsters marked is_starter in the seed (the game rules decide how many a player gets)
           content:
             application/json:
               schema:
@@ -223,18 +228,18 @@ components:
       schema:
         type: string
         pattern: '^[a-z0-9-]{1,40}$'
-      example: flamepup
+      example: mon-001
 
   responses:
     BadRequest:
-      description: Invalid query parameters
+      description: Invalid path or query parameter
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: invalid_request
-            message: Unknown element. lava
+            message: Invalid value for 'element'.
     Unauthorized:
       description: Missing, invalid or expired token
       content:
@@ -257,36 +262,43 @@ components:
   schemas:
     Element:
       type: string
-      enum: [fire, water, grass, electric, rock]
+      enum: [fire, water, earth, dark]
+
+    Elements:
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        $ref: '#/components/schemas/Element'
 
     Rarity:
       type: string
-      enum: [common, rare, legendary]
+      enum: [common, rare, epic]
 
     Stats:
       type: object
-      required: [hp, attack, defense, speed]
+      required: [hp, attack, defence, speed]
       properties:
         hp:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 255
         attack:
           type: integer
           minimum: 1
-          maximum: 100
-        defense:
+          maximum: 255
+        defence:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 255
         speed:
           type: integer
           minimum: 1
-          maximum: 100
+          maximum: 255
 
     MonsterSummary:
       type: object
-      required: [id, name, image_url, element, rarity]
+      required: [id, name, image_url, elements, rarity]
       properties:
         id:
           type: string
@@ -294,25 +306,23 @@ components:
           type: string
         image_url:
           type: string
-        element:
-          $ref: '#/components/schemas/Element'
+        elements:
+          $ref: '#/components/schemas/Elements'
         rarity:
           $ref: '#/components/schemas/Rarity'
 
     Monster:
       type: object
-      required: [id, name, description, image_url, element, rarity, starter, stats]
+      required: [id, name, image_url, elements, rarity, starter, stats]
       properties:
         id:
           type: string
         name:
           type: string
-        description:
-          type: string
         image_url:
           type: string
-        element:
-          $ref: '#/components/schemas/Element'
+        elements:
+          $ref: '#/components/schemas/Elements'
         rarity:
           $ref: '#/components/schemas/Rarity'
         starter:

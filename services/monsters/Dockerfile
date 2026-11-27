@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY app ./app
 
+# The seed (monsters.json + images) comes from the repo's seed/ folder, passed in as
+# an extra build context named "seed" (see docker-compose.yml and ci.yml).
+# Owned by root and read-only for the app user: the service reads it, never changes it.
+COPY --from=seed monsters.json ./seed/monsters.json
+COPY --from=seed images ./seed/images
+ENV SEED_DIR=/app/seed
+
 USER app
 
 EXPOSE 5002

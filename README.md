@@ -23,7 +23,7 @@ Some notes on it:
 - the gateway is the only thing you can reach from outside, on https://localhost:8443
 - everything talks HTTPS, also gateway -> service. We have our own CA and each service has its own certificate, the gateway checks them
 - anything under `/internal/` is for service to service calls, the gateway answers 404 if you try from outside
-- one database per service is planned but NOT there yet
+- one Postgres database per service, each on its own private network so only its owner can reach it. monsters-db is done, the others are coming
 - frontend will be a separate docker container outside compose, talking only to the gateway (not there yet either)
 
 Who does what:
@@ -59,7 +59,8 @@ Works:
 - HTTPS everywhere with self signed certs (script in `certs/`)
 - gateway routing to all 5 services, `/internal/*` blocked
 - containers run as non root user
-- `GET /monsters` and `GET /monsters/{id}` return real data (2 monsters, hardcoded for now)
+- monsters service (#35): the 15 monsters of `seed/monsters.json` and their images are validated and loaded into its own Postgres database (monsters-db) at startup. `GET /monsters` (with `element`/`rarity` filters), `GET /monsters/{id}`, `GET /monsters/{id}/image`, `/internal/monsters?ids=...` and `/internal/starters` read from it
+- monsters-db: TLS only (certificate checked by the service), password as a Docker secret, data in a named volume, container runs as the `postgres` user
 - CI on github actions: unit tests, bandit, pip-audit, trivy on the images, and a smoke test that starts everything and calls the gateway
 
 Designed but not implemented (the endpoints just answer 501 for now):
@@ -67,11 +68,10 @@ Designed but not implemented (the endpoints just answer 501 for now):
 - account, ownership, encounter, historian
 - game rules: [docs/game-rules.md](docs/game-rules.md)
 - how an encounter is resolved: [docs/EncounterRules.md](docs/EncounterRules.md)
-- seed data for the monsters is created in `seed/` (not loaded by the service yet)
   
 Missing:
 
-- databases (nothing is saved)
+- databases for account, ownership, encounter and historian
 - register / login / JWT, so no auth checks anywhere yet
 - the frontend
 - Bruno tests and Locust
@@ -89,7 +89,7 @@ cd Monster-Tamer
 docker compose up --build
 ```
 
-The cert script only needs to run the first time (it makes `certs/out/`, which is not in git). Gateway is then on https://localhost:8443. Stop with ctrl+c or `docker compose down`.
+The cert script only needs to run the first time. It makes `certs/out/` (not in git) with the certificates and the random database passwords. Running it again keeps the existing passwords; if you ever delete `certs/out/`, also run `docker compose down -v` so the databases are recreated with the new passwords. Gateway is then on https://localhost:8443. Stop with ctrl+c or `docker compose down`.
 
 Frontend: nothing to run yet.
 
@@ -104,8 +104,14 @@ curl --cacert certs/out/ca.crt https://localhost:8443/health
 # list of monsters
 curl --cacert certs/out/ca.crt https://localhost:8443/monsters
 
+# only dark monsters
+curl --cacert certs/out/ca.crt "https://localhost:8443/monsters?element=dark"
+
 # one monster with stats
-curl --cacert certs/out/ca.crt https://localhost:8443/monsters/flamepup
+curl --cacert certs/out/ca.crt https://localhost:8443/monsters/mon-001
+
+# its image
+curl --cacert certs/out/ca.crt https://localhost:8443/monsters/mon-001/image -o mon-001.png
 
 # monster that doesnt exist -> 404
 curl --cacert certs/out/ca.crt https://localhost:8443/monsters/nope
@@ -138,7 +144,6 @@ The same checks run in CI on every pull request, see `.github/workflows/ci.yml`.
 Things we know are not great yet:
 
 - some numbers in the game rules are still "tbd"
-- the monsters are hardcoded in the service instead of a db
 - service to service calls are not authenticated yet, they are only protected by the gateway blocking `/internal`
 
 Questions we have, feedback on these would help a lot:
