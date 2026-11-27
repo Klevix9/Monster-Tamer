@@ -1,0 +1,44 @@
+screens:
+  login:
+    get:
+      - /auth/token
+    post:
+      - /auth/register
+  main:
+    post:
+      - /auth/logout
+  collection:
+    get:
+      - /collection
+      - /monsters/{monster_id}
+  monster_details:
+    get:
+      - /monsters/{monster_id} # Could be not done if coming from screens.collection some instances
+  teams:
+    get:
+      - /teams
+      - /monsters/{monster_id}
+  team_editor:
+    get:
+      - /collection
+      - /monsters/{monster_id} # Could maybe recycle screens.teams results instead
+    post:
+      - /teams
+    put:
+      - /teams/{team_id}
+  history:
+    get:
+      - /history
+      - /monsters/{monster_id}
+  encounters:
+    get:
+      - /encounters
+      - /teams
+      - /monsters/{monster_id}
+  encounter_resolution:
+    post:
+      - /encounters/{encounter_id}/runs
+      - /runs/{run_id}/resolve
+  bestiary:
+    get:
+      - /monsters
