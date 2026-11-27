@@ -1,3 +1,7 @@
+export const HTTP_UNAUTHORIZED = 401;
+export const HTTP_NO_CONTENT   = 204;
+
+
 const USE_MOCKS = false;
 
 const GATEWAY = "https://localhost:8443";
@@ -43,7 +47,7 @@ function errorMessage(status, data) {
   if (data && data.message) return data.message;                 // our {error, message}
   if (data && data.error_description) return data.error_description; // OAuth2 errors
   if (data && typeof data.detail === "string") return data.detail;   // FastAPI default
-  if (status === 401) return "Please log in again.";
+  if (status === HTTP_UNAUTHORIZED) return "Please log in again.";
   return `Something went wrong (error ${status}).`;
 }
 
@@ -67,8 +71,8 @@ async function request(method, path, { json, form } = {}) {
     throw new ApiError(0, "Can't reach the server. Is the backend running and the certificate trusted?");
   }
 
-  if (response.status === 401) forgetToken();
-  if (response.status === 204) return null;
+  if (response.status === HTTP_UNAUTHORIZED) forgetToken();
+  if (response.status === HTTP_NO_CONTENT) return null;
 
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new ApiError(response.status, errorMessage(response.status, data));
@@ -98,6 +102,12 @@ export async function logout() {
   }
 }
 
+export function getProfile() {
+  return request("GET", "/me")
+}
+
+//changeProfile() GREEN
+
 // ---------------------------------------------------------------------------
 // Bestiary
 // ---------------------------------------------------------------------------
@@ -105,5 +115,79 @@ export function getMonsters() {
   return request("GET", "/monsters");
 }
 
-// TODO: one small function per endpoint in section 5,
-// e.g. getCollection(), createTeam(name, members), startRun(encounterId, teamId), ...
+export function getMonster(id) {
+  return request("GET", `/monsters/${id}`)
+}
+
+export function getImage(id) {
+  return request("GET", `/monsters/${id}/image`)
+}
+
+// ---------------------------------------------------------------------------
+// Enocunters
+// ---------------------------------------------------------------------------
+export function getEncounters() {
+  return request("GET", "/encounters")
+}
+
+export function getEncounter(id) {
+  return request("GET", `/encounters/${id}`)
+}
+
+export function startEncounter(id, { team_id }) {
+  return request("POST", `/encounters/${id}/runs`, {json: { team_id }})
+}
+
+export function getRun(id) {
+  return request("GET", `/runs/${id}`)
+}
+
+export function resolveRun(id) {
+  return request("POST", `/runs/${id}/resolve`)
+}
+
+export function abandonRun(id) {
+  return request("POST", `/runs/${id}/abandon`)
+}
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+export function getHistory() {
+  return request("GET", `/history`)
+}
+
+export function getHistoryElement(id) {
+  return request("GET", `/history/${id}`)
+}
+
+// ---------------------------------------------------------------------------
+// Ownership
+// ---------------------------------------------------------------------------
+export function getCollection() {
+  return request("GET", `/collection`)
+}
+
+export function getTeams() {
+  return request("GET", `/teams`)
+}
+
+export function createTeam({name, members}) {
+  return request("POST", "/teams", {json: {name, members}})
+}
+
+export function getTeam(id) {
+  return request("GET", `/teams/${id}`)
+}
+
+export function editTeam(id, {name, members}) {
+  return request("PUT", `/teams/${id}`, {json: {name, members}})
+}
+
+export function deleteTeam(id) {
+  return request("DELETE", `/teams/${id}`)
+}
+
+export function validateTeam({name, members}) {
+  return request("POST", "/teams/validate", {json: {name, members}})
+}

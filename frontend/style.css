@@ -17,6 +17,10 @@ body{
     align-items: center;
 }
 
+.err-label {
+    color: red;
+}
+
 .login-input{
     margin-top: 5px;
     margin-bottom: 5px;
