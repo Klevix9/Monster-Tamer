@@ -44,8 +44,10 @@ jobs:
       - name: Dependency vulnerabilities (pip-audit)
         run: pip-audit -r requirements.txt
 
+      # The monsters image also needs seed/ (a second build context, like in compose).
+      # Other services ignore the extra context.
       - name: Build image
-        run: docker build -t monster-tamers/${{ matrix.service }}:ci .
+        run: docker build --build-context seed=../../seed -t monster-tamers/${{ matrix.service }}:ci .
 
       - name: Image vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -94,9 +96,16 @@ jobs:
           set -e
           CURL="curl --fail --silent --show-error --cacert certs/out/ca.crt"
           $CURL https://localhost:8443/health
-          $CURL https://localhost:8443/monsters
 
-          # monsters
+          # monsters: the whole seed is served from the database, with images
+          count=$($CURL https://localhost:8443/monsters | jq length)
+          test "$count" = "$(jq length seed/monsters.json)"
+          $CURL https://localhost:8443/monsters/mon-001 | jq -e '.stats.attack > 0'
+          type=$($CURL --output /dev/null --write-out "%{content_type}" \
+                 https://localhost:8443/monsters/mon-001/image)
+          test "$type" = "image/png"
+
+          # internal paths are blocked by the gateway
           code=$(curl --silent --output /dev/null --write-out "%{http_code}" \
                  --cacert certs/out/ca.crt https://localhost:8443/internal/monsters)
           test "$code" = "404"

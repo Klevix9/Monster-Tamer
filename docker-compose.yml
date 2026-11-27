@@ -32,24 +32,87 @@ services:
   # Monsters: the example service. Copy this block for every new service.
   # ---------------------------------------------------------------------------
   monsters:
-    build: ./services/monsters
+    build:
+      context: ./services/monsters
+      # seed/ is outside the service folder, so it is passed as a second,
+      # named build context. The Dockerfile copies it with COPY --from=seed.
+      additional_contexts:
+        seed: ./seed
     # No "ports:" here on purpose. Only other containers can reach it.
     expose:
       - "5002"
+    environment:
+      DB_HOST: monsters-db
+      DB_NAME: monsters
+      DB_USER: monsters
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      CA_FILE: /certs/ca.crt
+    secrets:
+      - source: monsters_db_password
+        target: db_password
     volumes:
       # Each service only gets ITS OWN key, plus the CA to check the others.
       - ./certs/out/ca.crt:/certs/ca.crt:ro
       - ./certs/out/monsters.crt:/certs/service.crt:ro
       - ./certs/out/monsters.key:/certs/service.key:ro
+    depends_on:
+      monsters-db:
+        condition: service_healthy
     healthcheck:
       # Calls its own /health over HTTPS. Change the port when you copy this.
       test: ["CMD", "python", "-c", "import ssl,urllib.request; urllib.request.urlopen('https://localhost:5002/health', context=ssl.create_default_context(cafile='/certs/ca.crt'), timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 15s
     networks:
       - backend
+      - monsters-data
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # monsters-db: Postgres owned by the monsters service only (Lab 05).
+  # Copy this block for ownership-db etc.: change the names, the secret and the
+  # network, and add the name to SERVICES and DATABASES in certs/generate-certs.sh.
+  # ---------------------------------------------------------------------------
+  monsters-db:
+    image: postgres:18.6-alpine
+    # Runs as the image's unprivileged "postgres" user, never as root.
+    user: postgres
+    environment:
+      POSTGRES_DB: monsters
+      POSTGRES_USER: monsters
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - source: monsters_db_password
+        target: db_password
+    volumes:
+      # Named volume: the data survives "docker compose down" (but not "down -v").
+      - monsters-db-data:/var/lib/postgresql
+      - ./certs/out/monsters-db.crt:/certs/service.crt:ro
+      - ./certs/out/monsters-db.key:/certs/service.key:ro
+      - ./db/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    # Postgres refuses a private key that other users can read, and the mounted
+    # one is readable by everyone (see the cert script). So we copy it to /tmp
+    # with mode 600 first, then start the normal Postgres entrypoint with TLS on.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        cp /certs/service.key /tmp/server.key && chmod 600 /tmp/server.key &&
+        exec docker-entrypoint.sh postgres
+        -c ssl=on
+        -c ssl_cert_file=/certs/service.crt
+        -c ssl_key_file=/tmp/server.key
+        -c ssl_min_protocol_version=TLSv1.2
+        -c hba_file=/etc/postgresql/pg_hba.conf
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "monsters", "-d", "monsters"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - monsters-data
     restart: unless-stopped
 
   account:
@@ -129,8 +192,20 @@ services:
       - backend
     restart: unless-stopped
 
-  # TODO (task 13): one database per service, each with a named volume so data
-  # survives "docker compose down". Only its own service may connect to it.
+  # TODO (task 13): a database for the other services too, copying monsters-db.
 
 networks:
   backend: {}
+  # One private network per database: only the owning service joins it, so no
+  # other container can even reach the DB. "internal" = no route to the internet.
+  monsters-data:
+    internal: true
+
+volumes:
+  monsters-db-data: {}
+
+# Docker secrets are mounted as files in /run/secrets/ (Lab 08). They are created
+# by certs/generate-certs.sh and never committed.
+secrets:
+  monsters_db_password:
+    file: ./certs/out/monsters_db_password

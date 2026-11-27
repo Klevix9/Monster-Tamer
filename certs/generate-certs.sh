@@ -19,6 +19,13 @@ SERVICES=(
   historian
   encounter
   ownership
+  monsters-db
+)
+
+# One database per service (Lab 05). Each gets a random password, stored as a
+# Docker secret file "<name>_db_password". Add ownership etc. here when their DB exists.
+DATABASES=(
+  monsters
 )
 
 DAYS=365
@@ -62,9 +69,19 @@ EOF
   rm -f "$name.csr" "$name.ext"
 done
 
+# 3. Database passwords. Made once and then kept: Postgres only reads the password
+# the first time it creates its data volume, so a new password would lock the
+# service out of an existing database (fix: "docker compose down -v").
+for db in "${DATABASES[@]}"; do
+  if [[ ! -f "${db}_db_password" ]]; then
+    echo "Creating database password for $db"
+    openssl rand -hex 32 > "${db}_db_password"
+  fi
+done
+
 # Containers run as non-root users with a different user id than yours, so they
 # need read access to their key. Acceptable for local self-signed dev certs only.
-chmod 644 ./*.key ./*.crt
+chmod 644 ./*.key ./*.crt ./*_db_password
 chmod 600 ca.key
 
-echo "Done. Files are in certs/out/"
+echo "Done. Certificates and secrets are in certs/out/"
